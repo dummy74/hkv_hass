@@ -14,7 +14,7 @@ from homeassistant.config_entries import ConfigEntry, OptionsFlow
 
 from .const import DOMAIN
 from .hub import HKVHub
-from homeassistant.components.hkv.const import CONF_DEV, CONF_BAUD,\
+from .hkv.const import CONF_DEV, CONF_BAUD,\
     CONF_INTERVAL, SCAN_REGISTERS
 
 _LOGGER = logging.getLogger(__name__)
