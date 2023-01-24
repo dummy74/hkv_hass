@@ -96,7 +96,7 @@ class HKVNumber(NumberEntity):
         self._attr_native_value = self.coordinator.get_data()['devices'][self.description.slave][self.description.key]
 
         self._attr_unique_id = f"{actual_id}_{self.description.key}"
-        self.entity_id = f"{NUMBER_DOMAIN}.{DOMAIN}_{self.description.key}"
+        self.entity_id = f"{NUMBER_DOMAIN}.{DOMAIN}_{actual_id}_{self.description.key}"
 
         self._attr_mode = NumberMode.BOX #SLIDER
   
