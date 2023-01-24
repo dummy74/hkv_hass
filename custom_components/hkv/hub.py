@@ -6,7 +6,7 @@ Created on Dec 31, 2022
 import threading
 from .hkv.hkv import HKV
 import logging
-from homeassistant.components.hkv.hkv.packets import HKVHelloPacket,\
+from .packets import HKVHelloPacket,\
     HKVDataPacket, HKVTempDataPacket
 from queue import Empty
 from collections import OrderedDict
