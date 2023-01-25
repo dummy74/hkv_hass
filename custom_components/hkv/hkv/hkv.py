@@ -182,7 +182,7 @@ class HKV():
         evt_err = self._events[HKVNAckPacket]
         return self._write(evt,evt_err,SRC=99, DST=int(dst), TYPE="T", TTYPE="C", timeout=timeout)
     
-    def get_temps(self,*chan,dst:int=0, timeout=30):
+    def get_temps(self,*chan,dst:int=0, timeout=60):
         '''
         Get temperatures.
         ::param chan: the channels (all channels if empty)
