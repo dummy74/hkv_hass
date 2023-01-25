@@ -38,6 +38,20 @@ class HKVHub:
         _LOGGER.info(f"set temps transmit interval: {self.hkv.set_temps_transmit_period(delay=0, period=0, dst=-1, timeout=60)}")
         #_LOGGER.info(f"conn: {self.hkv.get_connections(dst=-1)}")
         
+    async def scan_connected_devices(self):
+        devices={}
+        # for addr in self.hkv._known_addr:
+        #     ack,pack = self.hkv.hello(dst=addr)
+        #     if ack:
+        #         devices[addr] = {
+        #             'id': pack.ID,
+        #             # 'temps':self.hkv.get_temps(dst=addr)[1],
+        #             # 'relais':self.hkv.get_relais(dst=addr)[1],
+        #             # 'connections':self.hkv.get_connections(dst=addr)[1],
+        #             }
+        # _LOGGER.info(f"data: {devices=}")
+        return {"devices": devices}
+        
     async def fetch_data(self):
                         
         devices = OrderedDict()
