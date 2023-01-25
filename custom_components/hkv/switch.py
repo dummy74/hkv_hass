@@ -78,7 +78,7 @@ class HKVSwitch(CoordinatorEntity, SwitchEntity):
         actual_id = description.slave
 
         self._attr_unique_id = f"{actual_id}_{self.description.key}"
-        self.entity_id = f"{SWITCH_DOMAIN}.{DOMAIN}_{self.description.key}"
+        self.entity_id = f"{SWITCH_DOMAIN}.{DOMAIN}_{actual_id}_{self.description.key}"
 
         self._update_job = HassJob(self.async_schedule_update_ha_state)
         self._unsub_update = None

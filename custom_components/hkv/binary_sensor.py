@@ -83,7 +83,7 @@ class HKVBinarySensor(CoordinatorEntity, BinarySensorEntity):
 
         self._attr_entity_category: self.description.entity_category
         self._attr_unique_id = f"{actual_id}_{self.description.key}"
-        self.entity_id = f"{BINARY_SENSOR_DOMAIN}.{DOMAIN}_{self.description.key}"
+        self.entity_id = f"{BINARY_SENSOR_DOMAIN}.{DOMAIN}_{actual_id}_{self.description.key}"
 
         self._update_job = HassJob(self.async_schedule_update_ha_state)
         self._unsub_update = None

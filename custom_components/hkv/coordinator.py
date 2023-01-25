@@ -19,7 +19,7 @@ from homeassistant.helpers.update_coordinator import (
 )
 from .const import DOMAIN
 from .hub import HKVHub
-from homeassistant.components.hkv.hkv.packets import HKVTempDataPacket, HKVRelaisDataPacket
+from .hkv.packets import HKVTempDataPacket, HKVRelaisDataPacket
 from dataclasses import asdict
 
 _LOGGER = logging.getLogger(__name__)
