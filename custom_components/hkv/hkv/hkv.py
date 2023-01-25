@@ -200,7 +200,7 @@ class HKV():
                 return res[0]
         else:
             evt = self._events[HKVTempDataPacket]
-            return self._write(evt, evt_err, SRC=99, DST=int(dst), TYPE="T", timeout=timeout, TTYPE="G",timeout=60)
+            return self._write(evt, evt_err, SRC=99, DST=int(dst), TYPE="T", TTYPE="G", timeout=timeout)
         
     def set_temps_transmit_period(self,delay=None,period=None,dst:int=0, timeout=30):
         kargs = {}
