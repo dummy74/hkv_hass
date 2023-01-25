@@ -35,20 +35,6 @@ class HKVHub:
         _LOGGER.info(f"set temps measure interval: {self.hkv.set_temps_measure_period(delay=1000, period=30000, dst=-1)}")
         _LOGGER.info(f"set temps transmit interval: {self.hkv.set_temps_transmit_period(delay=1000, period=30000, dst=-1)}")
         #_LOGGER.info(f"conn: {self.hkv.get_connections(dst=-1)}")
-    
-    async def scan_connected_devices(self):
-        devices={}
-        # for addr in self.hkv._known_addr:
-        #     ack,pack = self.hkv.hello(dst=addr)
-        #     if ack:
-        #         devices[addr] = {
-        #             'id': pack.ID,
-        #             # 'temps':self.hkv.get_temps(dst=addr)[1],
-        #             # 'relais':self.hkv.get_relais(dst=addr)[1],
-        #             # 'connections':self.hkv.get_connections(dst=addr)[1],
-        #             }
-        # _LOGGER.info(f"data: {devices=}")
-        return {"devices": devices}
         
     async def fetch_data(self):
                         
@@ -132,19 +118,6 @@ class HKVHub:
                                 print(f"{reli} not present")
                                 continue
             except: pass
-        # # for addr in self.hkv._known_addr:
-        # #     ack,pack = await self.hkv.get_temps(dst=addr)
-        # #     if ack:
-        # #         devices[addr] = {
-        # #                 'id': pack.ID,
-        # #                 'temps':pack.DATA,
-        # #                 }
-        # # _LOGGER.info(f"data: {devices=}")
-        # packets = await self.hkv.packets_pop()
-        # # for _ in range(len(self.hkv._packets)):
-        # #     packets.append(self.hkv._packets.pop())
-        # #
-        # _LOGGER.error(f"packets fetched: {packets}")
         
         return {"devices": devices}
         
