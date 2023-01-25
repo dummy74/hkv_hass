@@ -102,42 +102,42 @@ class HKV():
         self._thread = Thread(target=self.recv,daemon=True)
         self._thread.start()
       
-    def reboot(self,dst:int=0):
+    def reboot(self,dst:int=0, timeout=5):
         evt = self._events[HKVAckPacket]
         evt_err = self._events[HKVNAckPacket]
-        return self._write(evt, evt_err, SRC=99, DST=int(dst), TYPE="B")
+        return self._write(evt, evt_err, SRC=99, DST=int(dst), TYPE="B", timeout=timeout)
     
-    def hello(self,dst:int=0):
+    def hello(self,dst:int=0, timeout=5):
         evt = self._events[HKVHelloPacket]
         evt_err = self._events[HKVNAckPacket]
-        return self._write(evt, evt_err, SRC=99, DST=int(dst), TYPE="H", HTYPE="R")
+        return self._write(evt, evt_err, SRC=99, DST=int(dst), TYPE="H", HTYPE="R", timeout=timeout)
     
-    def get_status(self,dst:int=0):
+    def get_status(self,dst:int=0, timeout=30):
         evt = self._events[HKVStatusDataPacket]
         evt_err = self._events[HKVNAckPacket]
-        return self._write(evt,evt_err,SRC=99, DST=int(dst), TYPE="S", STYPE="G",timeout=60)
+        return self._write(evt,evt_err,SRC=99, DST=int(dst), TYPE="S", STYPE="G", timeout=timeout)
     
-    def get_connections(self,dst:int=0):
+    def get_connections(self,dst:int=0, timeout=30):
         evt = self._events[HKVConnectionDataPacket]
         evt_err = self._events[HKVNAckPacket]
-        return self._write(evt,evt_err,SRC=99, DST=int(dst), TYPE="C", CTYPE="G")
+        return self._write(evt,evt_err,SRC=99, DST=int(dst), TYPE="C", CTYPE="G", timeout=timeout)
     
-    def add_connection(self,addr:int,stype:int,dst:int=0):
+    def add_connection(self,addr:int,stype:int,dst:int=0, timeout=30):
         evt = self._events[HKVAckPacket]
         evt_err = self._events[HKVNAckPacket]
-        return self._write(evt,evt_err,SRC=99, DST=int(dst), TYPE="C", CTYPE="A", ADDR=int(addr), STYPE=int(stype))
+        return self._write(evt,evt_err,SRC=99, DST=int(dst), TYPE="C", CTYPE="A", ADDR=int(addr), STYPE=int(stype), timeout=timeout)
     
-    def remove_connection(self,addr:int,stype:int,dst:int=0):
+    def remove_connection(self,addr:int,stype:int,dst:int=0, timeout=5):
         evt = self._events[HKVAckPacket]
         evt_err = self._events[HKVNAckPacket]
-        return self._write(evt,evt_err,SRC=99, DST=int(dst), TYPE="C", CTYPE="A", ADDR=int(addr), STYPE=int(stype))
+        return self._write(evt,evt_err,SRC=99, DST=int(dst), TYPE="C", CTYPE="A", ADDR=int(addr), STYPE=int(stype), timeout=timeout)
     
-    def clear_connections(self,dst:int=0):
+    def clear_connections(self,dst:int=0, timeout=5):
         evt = self._events[HKVAckPacket]
         evt_err = self._events[HKVNAckPacket]
-        return self._write(evt,evt_err,SRC=99, DST=int(dst), TYPE="C", CTYPE="C")
+        return self._write(evt,evt_err,SRC=99, DST=int(dst), TYPE="C", CTYPE="C", timeout=timeout)
     
-    def get_relais(self,*chan,dst:int=0):
+    def get_relais(self,*chan,dst:int=0, timeout=30):
         '''
         Get relais states.
         ::param chan: the channels (all channels if empty)
@@ -148,21 +148,21 @@ class HKV():
             evt = self._events[HKVRelaisChannelPacket]
             res = []
             for c in chan:
-                res.append(self._write(evt, evt_err, SRC=99, DST=int(dst), TYPE="R", RTYPE="G", CHAN=c))
+                res.append(self._write(evt, evt_err, SRC=99, DST=int(dst), TYPE="R", RTYPE="G", CHAN=c, timeout=timeout))
             if len(res)>1:
                 return res
             else:
                 return res[0]
         else:
             evt = self._events[HKVRelaisDataPacket]
-            return self._write(evt, evt_err, SRC=99, DST=int(dst), TYPE="R", RTYPE="G")
+            return self._write(evt, evt_err, SRC=99, DST=int(dst), TYPE="R", RTYPE="G", timeout=timeout)
       
-    def set_relais(self,*vals,dst:int=0):
+    def set_relais(self,*vals,dst:int=0, timeout=30):
         assert len(vals)>0
         evt = self._events[HKVAckPacket]
         evt_err = self._events[HKVNAckPacket]
         if len(vals)==1 and not isinstance(vals[0],Iterable):
-            return self._write(evt, evt_err, SRC=99, DST=int(dst), TYPE="R", RTYPE="S", VAL=vals[0])
+            return self._write(evt, evt_err, SRC=99, DST=int(dst), TYPE="R", RTYPE="S", VAL=vals[0], timeout=timeout)
         else:
             chan = 0
             res = []
@@ -174,15 +174,15 @@ class HKV():
                 else:
                     chan += 1
                     val = v
-                res.append(self._write(evt, evt_err, SRC=99, DST=int(dst), TYPE="R", RTYPE="S", CHAN=chan, VAL=val))
+                res.append(self._write(evt, evt_err, SRC=99, DST=int(dst), TYPE="R", RTYPE="S", CHAN=chan, VAL=val, timeout=timeout))
             return res
     
-    def calibrate_temps(self,dst:int=0):
+    def calibrate_temps(self,dst:int=0, timeout=5):
         evt = self._events[HKVAckPacket]
         evt_err = self._events[HKVNAckPacket]
-        return self._write(evt,evt_err,SRC=99, DST=int(dst), TYPE="T", TTYPE="C")
+        return self._write(evt,evt_err,SRC=99, DST=int(dst), TYPE="T", TTYPE="C", timeout=timeout)
     
-    def get_temps(self,*chan,dst:int=0):
+    def get_temps(self,*chan,dst:int=0, timeout=30):
         '''
         Get temperatures.
         ::param chan: the channels (all channels if empty)
@@ -193,30 +193,30 @@ class HKV():
             evt = self._events[HKVTempChannelPacket]
             res = []
             for c in chan:
-                res.append(self._write(evt, evt_err, SRC=99, DST=int(dst), TYPE="T", TTYPE="G",CHAN=int(c)))
+                res.append(self._write(evt, evt_err, SRC=99, DST=int(dst), TYPE="T", TTYPE="G",CHAN=int(c), timeout=timeout))
             if len(res)>1:
                 return res
             else:
                 return res[0]
         else:
             evt = self._events[HKVTempDataPacket]
-            return self._write(evt, evt_err, SRC=99, DST=int(dst), TYPE="T", TTYPE="G",timeout=60)
+            return self._write(evt, evt_err, SRC=99, DST=int(dst), TYPE="T", timeout=timeout, TTYPE="G",timeout=60)
         
-    def set_temps_transmit_period(self,delay=None,period=None,dst:int=0):
+    def set_temps_transmit_period(self,delay=None,period=None,dst:int=0, timeout=30):
         kargs = {}
         if not delay is None: kargs['DELAY'] = int(delay)
         if not period is None: kargs['PERIOD'] = int(period)
         evt = self._events[HKVAckPacket]
         evt_err = self._events[HKVNAckPacket]
-        return self._write(evt, evt_err, SRC=99, DST=int(dst), TYPE="T", TTYPE="P",**kargs)
+        return self._write(evt, evt_err, SRC=99, DST=int(dst), TYPE="T", TTYPE="P", timeout=timeout,**kargs)
         
-    def set_temps_measure_period(self,delay=None,period=None,dst:int=0):
+    def set_temps_measure_period(self,delay=None,period=None,dst:int=0, timeout=30):
         kargs = {}
         if not delay is None: kargs['DELAY'] = int(delay)
         if not period is None: kargs['PERIOD'] = int(period)
         evt = self._events[HKVAckPacket]
         evt_err = self._events[HKVNAckPacket]
-        return self._write(evt, evt_err, SRC=99, DST=int(dst), TYPE="T", TTYPE="M",**kargs)
+        return self._write(evt, evt_err, SRC=99, DST=int(dst), TYPE="T", TTYPE="M", timeout=timeout, **kargs)
       
     def _write(self, evt=None, *evt_err, timeout=30, **kw):
         data = json.dumps(kw)+'\r\n'
