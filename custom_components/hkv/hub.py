@@ -32,8 +32,8 @@ class HKVHub:
         _LOGGER.info(f"hello: {self.hkv.hello(dst=-1)}")
         #TODO: register temps handler
         
-        _LOGGER.info(f"set temps measure interval: {self.hkv.set_temps_measure_period(delay=1000, period=30000, dst=-1)}")
-        _LOGGER.info(f"set temps transmit interval: {self.hkv.set_temps_transmit_period(delay=1000, period=30000, dst=-1)}")
+        _LOGGER.info(f"set temps measure interval: {self.hkv.set_temps_measure_period(delay=1000, period=30000, dst=-1, timeout=60)}")
+        _LOGGER.info(f"set temps transmit interval: {self.hkv.set_temps_transmit_period(delay=1000, period=30000, dst=-1, timeout=60)}")
         #_LOGGER.info(f"conn: {self.hkv.get_connections(dst=-1)}")
         
     async def fetch_data(self):
