@@ -29,13 +29,13 @@ class HKVHub:
         
     def connect(self):
         self.hkv.connect(port=self.dev)
-        _LOGGER.info(f"hello: {self.hkv.hello(dst=-1)}")
+        _LOGGER.info(f"hello: {self.hkv.hello(dst=-1, timeout=60)}")
         #TODO: register temps handler
         
-        #_LOGGER.info(f"set temps measure interval: {self.hkv.set_temps_measure_period(delay=1000, period=30000, dst=-1, timeout=60)}")
-        #_LOGGER.info(f"set temps transmit interval: {self.hkv.set_temps_transmit_period(delay=1000, period=30000, dst=-1, timeout=60)}")
-        _LOGGER.info(f"set temps measure interval: {self.hkv.set_temps_measure_period(delay=0, period=0, dst=-1, timeout=60)}")
-        _LOGGER.info(f"set temps transmit interval: {self.hkv.set_temps_transmit_period(delay=0, period=0, dst=-1, timeout=60)}")
+        _LOGGER.info(f"set temps measure interval: {self.hkv.set_temps_measure_period(delay=120000, period=30000, dst=-1, timeout=60)}")
+        _LOGGER.info(f"set temps transmit interval: {self.hkv.set_temps_transmit_period(delay=120000, period=30000, dst=-1, timeout=60)}")
+        #_LOGGER.info(f"set temps measure interval: {self.hkv.set_temps_measure_period(delay=0, period=0, dst=-1, timeout=60)}")
+        #_LOGGER.info(f"set temps transmit interval: {self.hkv.set_temps_transmit_period(delay=0, period=0, dst=-1, timeout=60)}")
         #_LOGGER.info(f"conn: {self.hkv.get_connections(dst=-1)}")
         
     async def scan_connected_devices(self):
@@ -58,7 +58,7 @@ class HKVHub:
         
         dev = {'temp_transmit_interval':30000,'temp_measure_interval':30000,'CNT':None}
         
-        _,state_pck = self.hkv.get_status(dst=0)
+        _,state_pck = self.hkv.get_status(dst=0,timeout=60)
         print(state_pck)
         dev['ID'] = state_pck.ID
         dev['DISPLAY'] = state_pck.DISPLAY
@@ -67,7 +67,7 @@ class HKVHub:
         dev['RELAIS'] = state_pck.RELAIS
         dev['SENSOR'] = state_pck.SENSOR
         
-        _,temps_pck = self.hkv.get_temps(dst=0)
+        _,temps_pck = self.hkv.get_temps(dst=0,timeout=60)
         print(temps_pck)
         dev['CNT'] = temps_pck.CNT
         devices[temps_pck.SRC] = dev
@@ -80,7 +80,7 @@ class HKVHub:
             else:
                 print(f"{tempi} not present")
                 dev[tempi] = None
-        _,relais_pck = self.hkv.get_relais(dst=0)
+        _,relais_pck = self.hkv.get_relais(dst=0,timeout=60)
         print(relais_pck)
         #dev['ID'] = relais_pck.ID
         for ii in range(6):
@@ -91,7 +91,7 @@ class HKVHub:
             else:
                 print(f"{reli} not present")
                 continue
-        _,conn_pck = self.hkv.get_connections(dst=0) # HKV-Base
+        _,conn_pck = self.hkv.get_connections(dst=0,timeout=60) # HKV-Base
         if conn_pck:
             print(conn_pck)
             try:
@@ -101,7 +101,7 @@ class HKVHub:
                     if addr and addr!=99:
                         dev = {'temp_transmit_interval':30000,'temp_measure_interval':30000,'CNT':None}
                         devices[addr] = dev
-                        _,state_pck = self.hkv.get_status(dst=addr)
+                        _,state_pck = self.hkv.get_status(dst=addr,timeout=60)
                         print(state_pck)
                         dev['ID'] = state_pck.ID
                         dev['DISPLAY'] = state_pck.DISPLAY
@@ -109,7 +109,7 @@ class HKVHub:
                         dev['LORA'] = state_pck.LORA
                         dev['RELAIS'] = state_pck.RELAIS
                         dev['SENSOR'] = state_pck.SENSOR
-                        _,temps_pck = self.hkv.get_temps(dst=addr)
+                        _,temps_pck = self.hkv.get_temps(dst=addr,timeout=60)
                         print(temps_pck)
                         dev['ID'] = temps_pck.ID
                         dev['CNT'] = temps_pck.CNT
@@ -122,7 +122,7 @@ class HKVHub:
                             else:
                                 print(f"{tempi} not present")
                                 dev[tempi] = None
-                        _,relais_pck = self.hkv.get_relais(dst=addr)
+                        _,relais_pck = self.hkv.get_relais(dst=addr,timeout=60)
                         print(relais_pck)
                         #dev['ID'] = relais_pck.ID
                         for ii in range(6):
@@ -135,8 +135,8 @@ class HKVHub:
                                 continue
             except: pass
             
-        _LOGGER.info(f"set temps measure interval: {self.hkv.set_temps_measure_period(delay=1000, period=30000, dst=-1, timeout=5)}")
-        _LOGGER.info(f"set temps transmit interval: {self.hkv.set_temps_transmit_period(delay=1000, period=30000, dst=-1, timeout=5)}")
+        #_LOGGER.info(f"set temps measure interval: {self.hkv.set_temps_measure_period(delay=1000, period=30000, dst=-1, timeout=5)}")
+        #_LOGGER.info(f"set temps transmit interval: {self.hkv.set_temps_transmit_period(delay=1000, period=30000, dst=-1, timeout=5)}")
         
         return {"devices": devices}
         
