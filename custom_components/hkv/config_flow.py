@@ -24,7 +24,7 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_DEV,default='/dev/ttyUSB0'): str,
         vol.Required(CONF_BAUD,default=115200): int,
-        vol.Required(CONF_INTERVAL, default=30): int,
+        vol.Required(CONF_INTERVAL, default=1): int,
     }
 )
 
@@ -83,8 +83,8 @@ class HKVConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
         already_configured = False
 
-        if user_input[CONF_INTERVAL] < 10:
-            user_input[CONF_INTERVAL] = 10
+        if user_input[CONF_INTERVAL] < 1:
+            user_input[CONF_INTERVAL] = 1
 
         try:
             #not yet working
