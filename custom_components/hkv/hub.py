@@ -62,10 +62,10 @@ class HKVHub:
                 USB=dict(USED=False, READY=False),
                 LORA=dict(USED=False, READY=False),
                 RELAIS=dict(USED=False, READY=False),
-                SENSOR=dict(USED=False, READY=False, NUM=14,**{f"ADDR{i}":0 for i in 14}),
+                SENSOR=dict(USED=False, READY=False, NUM=14,**{f"ADDR{i}":0 for i in range(14)}),
                 CNT=14,
-                **{f"Temp{i+1}":0.0 for i in 14},
-                **{f"Relais{i+1}":False for i in 6},
+                **{f"Temp{i+1}":0.0 for i in range(14)},
+                **{f"Relais{i+1}":False for i in range(6)},
                 temp_transmit_interval=30000,
                 temp_measure_interval=30000,
                 )
