@@ -10,6 +10,7 @@ from .hkv.packets import HKVHelloPacket,\
     HKVDataPacket, HKVTempDataPacket
 from queue import Empty
 from collections import OrderedDict, defaultdict
+from dataclasses import asdict
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -40,16 +41,22 @@ class HKVHub:
         
     async def scan_connected_devices(self):
         devices={}
-        # for addr in self.hkv._known_addr:
-        #     ack,pack = self.hkv.hello(dst=addr)
-        #     if ack:
-        #         devices[addr] = {
-        #             'id': pack.ID,
-        #             # 'temps':self.hkv.get_temps(dst=addr)[1],
-        #             # 'relais':self.hkv.get_relais(dst=addr)[1],
-        #             # 'connections':self.hkv.get_connections(dst=addr)[1],
-        #             }
-        # _LOGGER.info(f"data: {devices=}")
+        for addr in self.hkv._known_addr:
+            ack,pack = self.hkv.hello(dst=addr)
+            if ack:
+                devices[addr] = {
+                    'ID': pack.ID,
+                    #'temps':self.hkv.get_temps(dst=addr)[1],
+                    #'relais':self.hkv.get_relais(dst=addr)[1],
+                    #'connections':self.hkv.get_connections(dst=addr)[1],
+                    }
+                ack,tpack = self.hkv.get_temps(dst=addr)
+                if ack:
+                    devices[addr].update(asdict(tpack))
+                ack,rpack = self.hkv.get_relais(dst=addr)
+                if ack:
+                    devices[addr].update(asdict(rpack))
+        _LOGGER.info(f"{addr=}: {devices[addr]=}")
         return {"devices": devices}
         
     async def fetch_data(self):
@@ -96,9 +103,9 @@ class HKVHub:
                     dev[tempi] = temp
                 else:
                     _LOGGER.error(f"{tempi} not present")
-                    dev[tempi] = None
+                    continue
         _,relais_pck = self.hkv.get_relais(dst=0,timeout=60)
-        _LOGGER.warning(f"0:{relais_pck})
+        _LOGGER.warning(f"0:{relais_pck}")
         if relais_pck is not None:
         #dev['ID'] = relais_pck.ID
             for ii in range(6):
@@ -107,7 +114,7 @@ class HKVHub:
                 if not rel is None:
                     dev[reli] = rel
                 else:
-                    print(f"{reli} not present")
+                    _LOGGER.error(f"{reli} not present")
                     continue
         _,conn_pck = self.hkv.get_connections(dst=0,timeout=60) # HKV-Base
         _LOGGER.warning(f"{conn_pck=}")
@@ -148,8 +155,8 @@ class HKVHub:
                                 if temp:
                                     dev[tempi] = temp
                                 else:
-                                    print(f"{tempi} not present")
-                                    dev[tempi] = None
+                                    _LOGGER.error(f"{tempi} not present")
+                                    continue
                         
                         relais_pck = None; retry = 5
                         while relais_pck is None and retry
@@ -164,7 +171,7 @@ class HKVHub:
                                 if not rel is None:
                                     dev[reli] = rel
                                 else:
-                                    print(f"{reli} not present")
+                                    _LOGGER.error(f"{reli} not present")
                                     continue
             except: pass
             
