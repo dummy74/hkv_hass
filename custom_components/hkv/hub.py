@@ -9,7 +9,7 @@ import logging
 from .hkv.packets import HKVHelloPacket,\
     HKVDataPacket, HKVTempDataPacket
 from queue import Empty
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -32,10 +32,10 @@ class HKVHub:
         _LOGGER.info(f"hello: {self.hkv.hello(dst=-1, timeout=60)}")
         #TODO: register temps handler
         
-        _LOGGER.info(f"set temps measure interval: {self.hkv.set_temps_measure_period(delay=120000, period=30000, dst=-1, timeout=60)}")
-        _LOGGER.info(f"set temps transmit interval: {self.hkv.set_temps_transmit_period(delay=120000, period=30000, dst=-1, timeout=60)}")
-        #_LOGGER.info(f"set temps measure interval: {self.hkv.set_temps_measure_period(delay=0, period=0, dst=-1, timeout=60)}")
-        #_LOGGER.info(f"set temps transmit interval: {self.hkv.set_temps_transmit_period(delay=0, period=0, dst=-1, timeout=60)}")
+        #_LOGGER.info(f"set temps measure interval: {self.hkv.set_temps_measure_period(delay=120000, period=30000, dst=-1, timeout=60)}")
+        #_LOGGER.info(f"set temps transmit interval: {self.hkv.set_temps_transmit_period(delay=120000, period=30000, dst=-1, timeout=60)}")
+        _LOGGER.info(f"set temps measure interval: {self.hkv.set_temps_measure_period(delay=0, period=0, dst=-1, timeout=60)}")
+        _LOGGER.info(f"set temps transmit interval: {self.hkv.set_temps_transmit_period(delay=0, period=0, dst=-1, timeout=60)}")
         #_LOGGER.info(f"conn: {self.hkv.get_connections(dst=-1)}")
         
     async def scan_connected_devices(self):
@@ -55,88 +55,105 @@ class HKVHub:
     async def fetch_data(self):
                         
         devices = OrderedDict()
+        def defaultdevdata(key):
+            if key in ['ID']: return 'UNKNOWN'
+            elif key in ['DISPLAY','USB','LORA','RELAIS']: return dict(USED=False, READY=False)
+            elif key in ['SENSOR']: return dict(USED=False, READY=False, NUM=14,**{f"ADDR{i}":0 for i in 14})
+            elif key in ['CNT']: return 0
+            elif key.startswith('Temp'): return 0.0
+            elif key.startswith('Relais'): return False
+            elif key in ['temp_transmit_interval', 'temp_measure_interval']: return 30000
+            else: return None
         
-        dev = {'temp_transmit_interval':30000,'temp_measure_interval':30000,'CNT':None}
+        dev = defaultdict(defaultdevdata)
+        #dev = {'temp_transmit_interval':30000,'temp_measure_interval':30000,'CNT':None}
         
         _,state_pck = self.hkv.get_status(dst=0,timeout=60)
-        print(state_pck)
-        dev['ID'] = state_pck.ID
-        dev['DISPLAY'] = state_pck.DISPLAY
-        dev['USB'] = state_pck.USB
-        dev['LORA'] = state_pck.LORA
-        dev['RELAIS'] = state_pck.RELAIS
-        dev['SENSOR'] = state_pck.SENSOR
+        _LOGGER.warning(state_pck)
+        if state_pck is not None:
+            dev['ID'] = state_pck.ID
+            dev['DISPLAY'] = state_pck.DISPLAY
+            dev['USB'] = state_pck.USB
+            dev['LORA'] = state_pck.LORA
+            dev['RELAIS'] = state_pck.RELAIS
+            dev['SENSOR'] = state_pck.SENSOR
         
         _,temps_pck = self.hkv.get_temps(dst=0,timeout=60)
-        print(temps_pck)
-        dev['CNT'] = temps_pck.CNT
-        devices[temps_pck.SRC] = dev
-        num = state_pck.SENSOR['NUM']
-        for ii in range(num):
-            tempi = f"Temp{ii+1}"
-            temp = getattr(temps_pck,tempi,None)
-            if temp:
-                dev[tempi] = temp
-            else:
-                print(f"{tempi} not present")
-                dev[tempi] = None
-        _,relais_pck = self.hkv.get_relais(dst=0,timeout=60)
-        print(relais_pck)
+        _LOGGER.warning(temps_pck)
+        if temps_pck is not None:
+            dev['CNT'] = temps_pck.CNT
+            devices[temps_pck.SRC] = dev
+            num = state_pck.SENSOR['NUM']
+            for ii in range(num):
+                tempi = f"Temp{ii+1}"
+                temp = getattr(temps_pck,tempi,None)
+                if temp:
+                    dev[tempi] = temp
+                else:
+                    print(f"{tempi} not present")
+                    dev[tempi] = None
+        _,relais_pck = self.hkv.get_relais(dst=0,timeout=10)
+        _LOGGER.warning(relais_pck)
+        if relais_pck is not None:
         #dev['ID'] = relais_pck.ID
-        for ii in range(6):
-            reli = f"Relais{ii+1}"
-            rel = getattr(relais_pck,reli,None)
-            if not rel is None:
-                dev[reli] = rel
-            else:
-                print(f"{reli} not present")
-                continue
-        _,conn_pck = self.hkv.get_connections(dst=0,timeout=60) # HKV-Base
+            for ii in range(6):
+                reli = f"Relais{ii+1}"
+                rel = getattr(relais_pck,reli,None)
+                if not rel is None:
+                    dev[reli] = rel
+                else:
+                    print(f"{reli} not present")
+                    continue
+        _,conn_pck = self.hkv.get_connections(dst=0,timeout=10) # HKV-Base
         if conn_pck:
-            print(conn_pck)
+            _LOGGER.warning(conn_pck)
             try:
                 for i in range(10):
                     addri = f"ADDR{i}"
                     addr = getattr(conn_pck,addri,None)
                     if addr and addr!=99:
-                        dev = {'temp_transmit_interval':30000,'temp_measure_interval':30000,'CNT':None}
+                        dev = defaultdict(defaultdevdata)
+                        #dev = {'temp_transmit_interval':30000,'temp_measure_interval':30000,'CNT':None}
                         devices[addr] = dev
-                        _,state_pck = self.hkv.get_status(dst=addr,timeout=60)
-                        print(state_pck)
-                        dev['ID'] = state_pck.ID
-                        dev['DISPLAY'] = state_pck.DISPLAY
-                        dev['USB'] = state_pck.USB
-                        dev['LORA'] = state_pck.LORA
-                        dev['RELAIS'] = state_pck.RELAIS
-                        dev['SENSOR'] = state_pck.SENSOR
-                        _,temps_pck = self.hkv.get_temps(dst=addr,timeout=60)
-                        print(temps_pck)
-                        dev['ID'] = temps_pck.ID
-                        dev['CNT'] = temps_pck.CNT
-                        num = state_pck.SENSOR['NUM']
-                        for ii in range(num):
-                            tempi = f"Temp{ii+1}"
-                            temp = getattr(temps_pck,tempi,None)
-                            if temp:
-                                dev[tempi] = temp
-                            else:
-                                print(f"{tempi} not present")
-                                dev[tempi] = None
+                        _,state_pck = self.hkv.get_status(dst=addr,timeout=10)
+                        _LOGGER.warning(state_pck)
+                        if state_pck is not None:
+                            dev['ID'] = state_pck.ID
+                            dev['DISPLAY'] = state_pck.DISPLAY
+                            dev['USB'] = state_pck.USB
+                            dev['LORA'] = state_pck.LORA
+                            dev['RELAIS'] = state_pck.RELAIS
+                            dev['SENSOR'] = state_pck.SENSOR
+                        _,temps_pck = self.hkv.get_temps(dst=addr,timeout=10)
+                        _LOGGER.warning(temps_pck)
+                        if temps_pck is not None:
+                            dev['ID'] = temps_pck.ID
+                            dev['CNT'] = temps_pck.CNT
+                            num = state_pck.SENSOR['NUM']
+                            for ii in range(num):
+                                tempi = f"Temp{ii+1}"
+                                temp = getattr(temps_pck,tempi,None)
+                                if temp:
+                                    dev[tempi] = temp
+                                else:
+                                    print(f"{tempi} not present")
+                                    dev[tempi] = None
                         _,relais_pck = self.hkv.get_relais(dst=addr,timeout=60)
-                        print(relais_pck)
-                        #dev['ID'] = relais_pck.ID
-                        for ii in range(6):
-                            reli = f"Relais{ii+1}"
-                            rel = getattr(relais_pck,reli,None)
-                            if not rel is None:
-                                dev[reli] = rel
-                            else:
-                                print(f"{reli} not present")
-                                continue
+                        _LOGGER.warning(relais_pck)
+                        if relais_pck is not None:
+                            #dev['ID'] = relais_pck.ID
+                            for ii in range(6):
+                                reli = f"Relais{ii+1}"
+                                rel = getattr(relais_pck,reli,None)
+                                if not rel is None:
+                                    dev[reli] = rel
+                                else:
+                                    print(f"{reli} not present")
+                                    continue
             except: pass
             
-        #_LOGGER.info(f"set temps measure interval: {self.hkv.set_temps_measure_period(delay=1000, period=30000, dst=-1, timeout=5)}")
-        #_LOGGER.info(f"set temps transmit interval: {self.hkv.set_temps_transmit_period(delay=1000, period=30000, dst=-1, timeout=5)}")
+        _LOGGER.warning(f"set temps measure interval: {self.hkv.set_temps_measure_period(delay=1000, period=30000, dst=-1, timeout=5)}")
+        _LOGGER.warning(f"set temps transmit interval: {self.hkv.set_temps_transmit_period(delay=1000, period=30000, dst=-1, timeout=5)}")
         
         return {"devices": devices}
         

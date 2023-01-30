@@ -102,12 +102,12 @@ class HKV():
         self._thread = Thread(target=self.recv,daemon=True)
         self._thread.start()
       
-    def reboot(self,dst:int=0, timeout=5):
+    def reboot(self,dst:int=0, timeout=10):
         evt = self._events[HKVAckPacket]
         evt_err = self._events[HKVNAckPacket]
         return self._write(evt, evt_err, SRC=99, DST=int(dst), TYPE="B", timeout=timeout)
     
-    def hello(self,dst:int=0, timeout=5):
+    def hello(self,dst:int=0, timeout=10):
         evt = self._events[HKVHelloPacket]
         evt_err = self._events[HKVNAckPacket]
         return self._write(evt, evt_err, SRC=99, DST=int(dst), TYPE="H", HTYPE="R", timeout=timeout)
@@ -130,7 +130,7 @@ class HKV():
     def remove_connection(self,addr:int,stype:int,dst:int=0, timeout=5):
         evt = self._events[HKVAckPacket]
         evt_err = self._events[HKVNAckPacket]
-        return self._write(evt,evt_err,SRC=99, DST=int(dst), TYPE="C", CTYPE="A", ADDR=int(addr), STYPE=int(stype), timeout=timeout)
+        return self._write(evt,evt_err,SRC=99, DST=int(dst), TYPE="C", CTYPE="R", ADDR=int(addr), STYPE=int(stype), timeout=timeout)
     
     def clear_connections(self,dst:int=0, timeout=5):
         evt = self._events[HKVAckPacket]
@@ -218,25 +218,27 @@ class HKV():
         evt_err = self._events[HKVNAckPacket]
         return self._write(evt, evt_err, SRC=99, DST=int(dst), TYPE="T", TTYPE="M", timeout=timeout, **kargs)
       
-    def _write(self, evt=None, *evt_err, timeout=30, **kw):
+    def _write(self, evt=None, evt_err=None, timeout=30, **kw):
         data = json.dumps(kw)+'\r\n'
         n = self._dev.write(data.encode())
         #time.sleep(.1)
         _LOGGER.info(f"{n} bytes written.(data: {data}")
         if evt:
             evt.clear()
-            if evt.wait(timeout=timeout):
-                return len(data)==n, evt.param
-            else:
-                err_packets = []
-                for e in evt_err:
-                    if e.is_set():
-                        err_packets.append(e.param)
-                return False,err_packets if len(err_packets)>1 else err_packets[0] if len(err_packets)==1 else None
-        return len(data)==n, None
+            if evt_err is None:
+                evt_err = self._events[HKVNAckPacket]
+            evt_err.clear()
+            starttime = time.time()
+            while time.time()-starttime<timeout:
+                if evt.wait(timeout=.1):
+                    return True, evt.param
+                elif evt_err.is_set():
+                    return False, evt_err.param
+        return False, None
       
 if __name__=='__main__':
     import argparse,IPython
+    logging.basicConfig(level='DEBUG')
     
     parser = argparse.ArgumentParser()
     parser.add_argument("--dev1",default="/dev/ttyUSB0", help="Serial device")
