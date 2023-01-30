@@ -128,7 +128,7 @@ class HKVHub:
                         #dev = {'temp_transmit_interval':30000,'temp_measure_interval':30000,'CNT':None}
                         devices[addr] = dev
                         state_pck = None; retry = 5
-                        while state_pck is None and retry
+                        while state_pck is None and retry:
                             retry -= 1
                             _,state_pck = self.hkv.get_status(dst=addr,timeout=10)
                         _LOGGER.warning(f"{addr}:{retry=}:{state_pck=}")
@@ -141,7 +141,7 @@ class HKVHub:
                             dev['SENSOR'] = state_pck.SENSOR
                         
                         temps_pck = None; retry = 5
-                        while temps_pck is None and retry
+                        while temps_pck is None and retry:
                             retry -= 1
                             _,temps_pck = self.hkv.get_temps(dst=addr,timeout=10)
                             _LOGGER.warning(f"{addr}:{retry=}:{temps_pck}")
@@ -159,7 +159,7 @@ class HKVHub:
                                     continue
                         
                         relais_pck = None; retry = 5
-                        while relais_pck is None and retry
+                        while relais_pck is None and retry:
                             retry -= 1
                             _,relais_pck = self.hkv.get_relais(dst=addr,timeout=10)
                         _LOGGER.warning(f"{addr}:{retry=}:{relais_pck}")
