@@ -34,8 +34,8 @@ class HKVHub:
         
         #_LOGGER.info(f"set temps measure interval: {self.hkv.set_temps_measure_period(delay=120000, period=30000, dst=-1, timeout=60)}")
         #_LOGGER.info(f"set temps transmit interval: {self.hkv.set_temps_transmit_period(delay=120000, period=30000, dst=-1, timeout=60)}")
-        _LOGGER.info(f"set temps measure interval: {self.hkv.set_temps_measure_period(delay=0, period=0, dst=-1, timeout=60)}")
-        _LOGGER.info(f"set temps transmit interval: {self.hkv.set_temps_transmit_period(delay=0, period=0, dst=-1, timeout=60)}")
+        _LOGGER.info(f"set temps measure interval: {self.hkv.set_temps_measure_period(delay=0, period=0, dst=-1, timeout=10)}")
+        _LOGGER.info(f"set temps transmit interval: {self.hkv.set_temps_transmit_period(delay=0, period=0, dst=-1, timeout=10)}")
         #_LOGGER.info(f"conn: {self.hkv.get_connections(dst=-1)}")
         
     async def scan_connected_devices(self):
@@ -55,17 +55,22 @@ class HKVHub:
     async def fetch_data(self):
                         
         devices = OrderedDict()
-        def defaultdevdata(key):
-            if key in ['ID']: return 'UNKNOWN'
-            elif key in ['DISPLAY','USB','LORA','RELAIS']: return dict(USED=False, READY=False)
-            elif key in ['SENSOR']: return dict(USED=False, READY=False, NUM=14,**{f"ADDR{i}":0 for i in 14})
-            elif key in ['CNT']: return 0
-            elif key.startswith('Temp'): return 0.0
-            elif key.startswith('Relais'): return False
-            elif key in ['temp_transmit_interval', 'temp_measure_interval']: return 30000
-            else: return None
+        def defaultdevdata():
+            return dict(
+                ID='UNKNOWN',
+                DISPLAY=dict(USED=False, READY=False),
+                USB=dict(USED=False, READY=False),
+                LORA=dict(USED=False, READY=False),
+                RELAIS=dict(USED=False, READY=False),
+                SENSOR=dict(USED=False, READY=False, NUM=14,**{f"ADDR{i}":0 for i in 14}),
+                CNT=14,
+                **{f"Temp{i+1}":0.0 for i in 14},
+                **{f"Relais{i+1}":False for i in 6},
+                temp_transmit_interval=30000,
+                temp_measure_interval=30000,
+                )
         
-        dev = defaultdict(defaultdevdata)
+        dev = defaultdevdata()
         #dev = {'temp_transmit_interval':30000,'temp_measure_interval':30000,'CNT':None}
         
         _,state_pck = self.hkv.get_status(dst=0,timeout=60)
@@ -112,7 +117,7 @@ class HKVHub:
                     addri = f"ADDR{i}"
                     addr = getattr(conn_pck,addri,None)
                     if addr and addr!=99:
-                        dev = defaultdict(defaultdevdata)
+                        dev = defaultdevdata()
                         #dev = {'temp_transmit_interval':30000,'temp_measure_interval':30000,'CNT':None}
                         devices[addr] = dev
                         _,state_pck = self.hkv.get_status(dst=addr,timeout=10)
@@ -152,8 +157,8 @@ class HKVHub:
                                     continue
             except: pass
             
-        _LOGGER.warning(f"set temps measure interval: {self.hkv.set_temps_measure_period(delay=1000, period=30000, dst=-1, timeout=5)}")
-        _LOGGER.warning(f"set temps transmit interval: {self.hkv.set_temps_transmit_period(delay=1000, period=30000, dst=-1, timeout=5)}")
+        _LOGGER.warning(f"set temps measure interval: {self.hkv.set_temps_measure_period(delay=1000, period=30000, dst=-1, timeout=10)}")
+        _LOGGER.warning(f"set temps transmit interval: {self.hkv.set_temps_transmit_period(delay=1000, period=30000, dst=-1, timeout=10)}")
         
         return {"devices": devices}
         
