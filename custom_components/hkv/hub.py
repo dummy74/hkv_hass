@@ -32,10 +32,10 @@ class HKVHub:
         _LOGGER.info(f"hello: {self.hkv.hello(dst=-1, timeout=60)}")
         #TODO: register temps handler
         
-        _LOGGER.info(f"set temps measure interval: {self.hkv.set_temps_measure_period(delay=120000, period=30000, dst=-1, timeout=60)}")
-        _LOGGER.info(f"set temps transmit interval: {self.hkv.set_temps_transmit_period(delay=120000, period=30000, dst=-1, timeout=60)}")
-        #_LOGGER.info(f"set temps measure interval: {self.hkv.set_temps_measure_period(delay=0, period=0, dst=-1, timeout=60)}")
-        #_LOGGER.info(f"set temps transmit interval: {self.hkv.set_temps_transmit_period(delay=0, period=0, dst=-1, timeout=60)}")
+        #_LOGGER.info(f"set temps measure interval: {self.hkv.set_temps_measure_period(delay=120000, period=30000, dst=-1, timeout=60)}")
+        #_LOGGER.info(f"set temps transmit interval: {self.hkv.set_temps_transmit_period(delay=120000, period=30000, dst=-1, timeout=60)}")
+        _LOGGER.info(f"set temps measure interval: {self.hkv.set_temps_measure_period(delay=0, period=0, dst=-1, timeout=60)}")
+        _LOGGER.info(f"set temps transmit interval: {self.hkv.set_temps_transmit_period(delay=0, period=0, dst=-1, timeout=60)}")
         #_LOGGER.info(f"conn: {self.hkv.get_connections(dst=-1)}")
         
     async def scan_connected_devices(self):
@@ -135,8 +135,8 @@ class HKVHub:
                                 continue
             except: pass
             
-        #_LOGGER.info(f"set temps measure interval: {self.hkv.set_temps_measure_period(delay=1000, period=30000, dst=-1, timeout=5)}")
-        #_LOGGER.info(f"set temps transmit interval: {self.hkv.set_temps_transmit_period(delay=1000, period=30000, dst=-1, timeout=5)}")
+        _LOGGER.info(f"set temps measure interval: {self.hkv.set_temps_measure_period(delay=1000, period=30000, dst=-1, timeout=5)}")
+        _LOGGER.info(f"set temps transmit interval: {self.hkv.set_temps_transmit_period(delay=1000, period=30000, dst=-1, timeout=5)}")
         
         return {"devices": devices}
         
