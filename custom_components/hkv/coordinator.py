@@ -79,7 +79,7 @@ class HKVCoordinator(DataUpdateCoordinator):
             # Note: asyncio.TimeoutError and aiohttp.ClientError are already
             # handled by the data update coordinator.
             async with async_timeout.timeout(60):
-                parsed_data =  await self.api.fetch_data(sel.hass)
+                parsed_data =  await self.api.fetch_data(self.hass)
             self.data.update(parsed_data)
         except Exception as err:
             raise UpdateFailed(f"Error communicating with API: {err}")
