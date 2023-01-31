@@ -33,16 +33,17 @@ class HKVHub:
         _LOGGER.info(f"hello: {self.hkv.hello(dst=-1, timeout=20)}")
         #TODO: register temps handler
         
-        _LOGGER.info(f"set temps measure interval: {self.hkv.set_temps_measure_period(delay=1000, period=30000, dst=-1, timeout=20)}")
-        _LOGGER.info(f"set temps transmit interval: {self.hkv.set_temps_transmit_period(delay=1000, period=30000, dst=-1, timeout=20)}")
-        #_LOGGER.info(f"set temps measure interval: {self.hkv.set_temps_measure_period(delay=0, period=0, dst=-1, timeout=10)}")
-        #_LOGGER.info(f"set temps transmit interval: {self.hkv.set_temps_transmit_period(delay=0, period=0, dst=-1, timeout=10)}")
+        #_LOGGER.info(f"set temps measure interval: {self.hkv.set_temps_measure_period(delay=1000, period=30000, dst=-1, timeout=20)}")
+        #_LOGGER.info(f"set temps transmit interval: {self.hkv.set_temps_transmit_period(delay=1000, period=30000, dst=-1, timeout=20)}")
+        _LOGGER.info(f"set temps measure interval: {self.hkv.set_temps_measure_period(delay=0, period=0, dst=-1, timeout=10)}")
+        _LOGGER.info(f"set temps transmit interval: {self.hkv.set_temps_transmit_period(delay=0, period=0, dst=-1, timeout=10)}")
         #_LOGGER.info(f"conn: {self.hkv.get_connections(dst=-1)}")
         
     async def scan_connected_devices(self):
+        _LOGGER.error(f"scan_connected_devices: ...")
         devices={}
         for addr in self.hkv._known_addr:
-            ack,pack = self.hkv.hello(dst=addr)
+            ack,pack = await hass.async_add_executor_job(self.hkv.hello,addr) #(dst=addr)
             if ack:
                 devices[addr] = {
                     'ID': pack.ID,
@@ -50,12 +51,12 @@ class HKVHub:
                     #'relais':self.hkv.get_relais(dst=addr)[1],
                     #'connections':self.hkv.get_connections(dst=addr)[1],
                     }
-                ack,tpack = self.hkv.get_temps(dst=addr)
-                if ack:
-                    devices[addr].update(asdict(tpack))
-                ack,rpack = self.hkv.get_relais(dst=addr)
-                if ack:
-                    devices[addr].update(asdict(rpack))
+                #ack,tpack = self.hkv.get_temps(dst=addr)
+                #if ack:
+                #    devices[addr].update(asdict(tpack))
+                #ack,rpack = self.hkv.get_relais(dst=addr)
+                #if ack:
+                #    devices[addr].update(asdict(rpack))
         _LOGGER.info(f"{addr=}: {devices[addr]=}")
         return {"devices": devices}
         
@@ -141,8 +142,8 @@ class HKVHub:
                             dev.update(asdict(relais_pck))
             except: pass
             
-        #_LOGGER.warning(f"set temps measure interval: {self.hkv.set_temps_measure_period(delay=1000, period=30000, dst=-1, timeout=20)}")
-        #_LOGGER.warning(f"set temps transmit interval: {self.hkv.set_temps_transmit_period(delay=1000, period=30000, dst=-1, timeout=20)}")
+        _LOGGER.warning(f"set temps measure interval: {await hass.async_add_executor_job(self.hkv.set_temps_measure_period,1000,30000,-1,20)}") #(delay=1000, period=30000, dst=-1, timeout=20)}")
+        _LOGGER.warning(f"set temps transmit interval: {await hass.async_add_executor_job(self.hkv.set_temps_transmit_period,1000,30000,-1,20)}") #(delay=1000, period=30000, dst=-1, timeout=20)}")
         
         return {"devices": devices}
         
