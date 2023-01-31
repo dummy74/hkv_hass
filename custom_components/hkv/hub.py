@@ -83,7 +83,7 @@ class HKVHub:
         state_pck = None; retry = 5
         while state_pck is None and retry:
             retry -= 1
-            _,state_pck = await hass.async_add_executor_job(self.hkv.get_status,dst=0,timeout=60)
+            _,state_pck = await hass.async_add_executor_job(self.hkv.get_status,0,60)#dst=0,timeout=60)
             _LOGGER.warning(f"0:{state_pck=}")
         if state_pck is not None:
             dev.update(asdict(state_pck))
@@ -91,21 +91,21 @@ class HKVHub:
         temps_pck = None; retry = 5
         while temps_pck is None and retry:
             retry -= 1
-            _,temps_pck = await hass.async_add_executor_job(self.hkv.get_temps,dst=0,timeout=60)
+            _,temps_pck = await hass.async_add_executor_job(self.hkv.get_temps,0,60)#dst=0,timeout=60)
             _LOGGER.warning(f"0:{temps_pck=}")
         if temps_pck is not None:
             dev.update(asdict(temps_pck))
         relais_pck = None; retry = 5
         while relais_pck is None and retry:
             retry -= 1
-            _,relais_pck = await hass.async_add_executor_job(self.hkv.get_relais,dst=0,timeout=60)
+            _,relais_pck = await hass.async_add_executor_job(self.hkv.get_relais,0,60)#dst=0,timeout=60)
             _LOGGER.warning(f"0:{relais_pck=}")
         if relais_pck is not None:
             dev.update(asdict(relais_pck))
         conn_pck = None; retry = 5
         while conn_pck is None and retry:
             retry -= 1
-            _,conn_pck = await hass.async_add_executor_job(self.hkv.get_connections,dst=0,timeout=60) # HKV-Base
+            _,conn_pck = await hass.async_add_executor_job(self.hkv.get_connections,0,60)#dst=0,timeout=60) # HKV-Base
             _LOGGER.warning(f"{conn_pck=}")
         if conn_pck:
             try:
@@ -119,7 +119,7 @@ class HKVHub:
                         state_pck = None; retry = 5
                         while state_pck is None and retry:
                             retry -= 1
-                            _,state_pck = await hass.async_add_executor_job(self.hkv.get_status,dst=addr,timeout=10)
+                            _,state_pck = await hass.async_add_executor_job(self.hkv.get_status,addr,10)#dst=addr,timeout=10)
                             _LOGGER.warning(f"{addr}:{retry=}:{state_pck=}")
                         if state_pck is not None:
                             dev.update(asdict(state_pck))
@@ -127,7 +127,7 @@ class HKVHub:
                         temps_pck = None; retry = 5
                         while temps_pck is None and retry:
                             retry -= 1
-                            _,temps_pck = await hass.async_add_executor_job(self.hkv.get_temps,dst=addr,timeout=10)
+                            _,temps_pck = await hass.async_add_executor_job(self.hkv.get_temps,addr,10)#dst=addr,timeout=10)
                             _LOGGER.warning(f"{addr}:{retry=}:{temps_pck}")
                         if temps_pck is not None:
                             dev.update(asdict(temps_pck))
@@ -135,7 +135,7 @@ class HKVHub:
                         relais_pck = None; retry = 5
                         while relais_pck is None and retry:
                             retry -= 1
-                            _,relais_pck = await hass.async_add_executor_job(self.hkv.get_relais,dst=addr,timeout=10)
+                            _,relais_pck = await hass.async_add_executor_job(self.hkv.get_relais,addr,10)#dst=addr,timeout=10)
                             _LOGGER.warning(f"{addr}:{retry=}:{relais_pck}")
                         if relais_pck is not None:
                             dev.update(asdict(relais_pck))
