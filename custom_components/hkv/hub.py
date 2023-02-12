@@ -10,6 +10,7 @@ from .hkv.packets import HKVHelloPacket,\
     HKVDataPacket, HKVTempDataPacket
 from queue import Empty
 from collections import OrderedDict, defaultdict
+from dataclasses import asdict
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -29,37 +30,44 @@ class HKVHub:
         
     def connect(self):
         self.hkv.connect(port=self.dev)
-        _LOGGER.info(f"hello: {self.hkv.hello(dst=-1, timeout=60)}")
+        _LOGGER.info(f"hello: {self.hkv.hello(dst=-1, timeout=20)}")
         #TODO: register temps handler
         
-        #_LOGGER.info(f"set temps measure interval: {self.hkv.set_temps_measure_period(delay=120000, period=30000, dst=-1, timeout=60)}")
-        #_LOGGER.info(f"set temps transmit interval: {self.hkv.set_temps_transmit_period(delay=120000, period=30000, dst=-1, timeout=60)}")
+        #_LOGGER.info(f"set temps measure interval: {self.hkv.set_temps_measure_period(delay=1000, period=30000, dst=-1, timeout=20)}")
+        #_LOGGER.info(f"set temps transmit interval: {self.hkv.set_temps_transmit_period(delay=1000, period=30000, dst=-1, timeout=20)}")
         _LOGGER.info(f"set temps measure interval: {self.hkv.set_temps_measure_period(delay=0, period=0, dst=-1, timeout=10)}")
         _LOGGER.info(f"set temps transmit interval: {self.hkv.set_temps_transmit_period(delay=0, period=0, dst=-1, timeout=10)}")
         #_LOGGER.info(f"conn: {self.hkv.get_connections(dst=-1)}")
         
     async def scan_connected_devices(self):
+        _LOGGER.error(f"scan_connected_devices: ...")
         devices={}
-        # for addr in self.hkv._known_addr:
-        #     ack,pack = self.hkv.hello(dst=addr)
-        #     if ack:
-        #         devices[addr] = {
-        #             'id': pack.ID,
-        #             # 'temps':self.hkv.get_temps(dst=addr)[1],
-        #             # 'relais':self.hkv.get_relais(dst=addr)[1],
-        #             # 'connections':self.hkv.get_connections(dst=addr)[1],
-        #             }
-        # _LOGGER.info(f"data: {devices=}")
+        for addr in self.hkv._known_addr:
+            ack,pack = await hass.async_add_executor_job(self.hkv.hello,addr) #(dst=addr)
+            if ack:
+                devices[addr] = {
+                    'ID': pack.ID,
+                    #'temps':self.hkv.get_temps(dst=addr)[1],
+                    #'relais':self.hkv.get_relais(dst=addr)[1],
+                    #'connections':self.hkv.get_connections(dst=addr)[1],
+                    }
+                #ack,tpack = self.hkv.get_temps(dst=addr)
+                #if ack:
+                #    devices[addr].update(asdict(tpack))
+                #ack,rpack = self.hkv.get_relais(dst=addr)
+                #if ack:
+                #    devices[addr].update(asdict(rpack))
+        _LOGGER.info(f"{addr=}: {devices[addr]=}")
         return {"devices": devices}
         
-    async def fetch_data(self):
+    async def fetch_data(self, hass):
                         
         self.hkv._block_handlers = True
         
         devices = OrderedDict()
         
         def defaultdevdata():
-            return dict(
+            return OrderedDict(
                 ID='UNKNOWN',
                 # DISPLAY=dict(USED=False, READY=False),
                 # USB=dict(USED=False, READY=False),
@@ -133,7 +141,6 @@ class HKVHub:
         except Exception as e:
             _LOGGER.critical(e,exc_info=True)
         if conn_pck:
-            _LOGGER.warning(conn_pck)
             try:
                 
                 for i in range(conn_pck.CCNT):

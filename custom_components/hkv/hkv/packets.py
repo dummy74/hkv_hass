@@ -61,6 +61,7 @@ class HKVNAckPacket(HKVPacket):
     
 @dataclass
 class HKVHelloPacket(HKVPacket):
+    ID:str=field(init=False)
     HTYPE:str=field(init=False)
     @classmethod
     def from_data(cls,data):
