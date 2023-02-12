@@ -40,13 +40,16 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, asyn
             _LOGGER.debug(f"{name=}")
             _LOGGER.debug(f"{val=}")
             
-            if name.startswith('Relais'):
-                descriptions.append(HKVEntityDescription(
-                    key=name,
-                    name=name.replace('_', ' '),
-                    slave=dev_addr,
-                    keynum=int(name[6:]),
-                ))
+            if name in ['RDATA']:
+                
+                for i,t in enumerate(val):
+                    descriptions.append(HKVEntityDescription(
+                        key=f"{name}_{i}",
+                        name=f"Relais {i+1}",
+                        slave=dev_addr,
+                        keynum=i+1,
+                        value_fn=lambda data, slave, key: data['devices'][slave][key.split('_')[0]][int(key.split('_')[1])-1],
+                    ))
 
     entities = []
     entity = {}
@@ -88,14 +91,14 @@ class HKVSwitch(CoordinatorEntity, SwitchEntity):
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the device."""
         #self.coordinator.set_value(dev_addr=self.description.slave, key=self.description.key, keynum=self.description.keynum, value=1)
-        if self.description.key.startswith('Relais'):
+        if self.description.key.startswith('RDATA'):
             self.coordinator.hkv.set_relais((self.description.keynum,1),dst=self.description.slave)
         await self.coordinator.async_update_local_entry(dev_addr=self.description.slave, key=self.description.key, value=1)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off the device."""
         #self.coordinator.set_value(dev_addr=self.description.slave, key=self.description.key, keynum=self.description.keynum, value=0)
-        if self.description.key.startswith('Relais'):
+        if self.description.key.startswith('RDATA'):
             self.coordinator.hkv.set_relais((self.description.keynum,0),dst=self.description.slave)
         await self.coordinator.async_update_local_entry(dev_addr=self.description.slave, key=self.description.key, value=0)
 
@@ -108,7 +111,7 @@ class HKVSwitch(CoordinatorEntity, SwitchEntity):
     @property
     def available(self) -> bool:
         try:
-            return self.description.key in self.coordinator.get_data()["devices"][self.description.slave]
+            return self.description.key.split('_')[0] in self.coordinator.get_data()["devices"][self.description.slave]
         except Exception as e:
             _LOGGER.critical(e)
             _LOGGER.info(self.coordinator.get_data())
@@ -122,7 +125,7 @@ class HKVSwitch(CoordinatorEntity, SwitchEntity):
                 (DOMAIN, self.unique_id.split('_')[0])
             },
             name=self.unique_id.split('_')[0],
-            model='HKV_Temp_Heltec' if self.unique_id.split('_')[0].startswith('59') else 'HKV_Temp_D1_mini', #self.unique_id.split('_')[0],
+            model='HKV_Temp_Heltec' if self.unique_id.split('_')[0].startswith('59') else 'HKV_Coordinator' if self.unique_id.split('_')[0].startswith('99') else 'HKV_Temp_D1_mini', #self.unique_id.split('_')[0],
             manufacturer="holger", # to be dynamically set for gavazzi and redflow
         )
         

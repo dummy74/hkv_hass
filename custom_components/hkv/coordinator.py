@@ -89,7 +89,11 @@ class HKVCoordinator(DataUpdateCoordinator):
 
     async def async_update_local_entry(self, dev_addr, key, value):
         data = self.data
-        data["devices"][dev_addr][key] = value
+        key = key.split('_')
+        if len(key)==1:
+            data["devices"][dev_addr][key[0]] = value
+        else:
+            data["devices"][dev_addr][key[0]][int(key[1])-1] = value
         self.logger.error(f"async_update_local_entry: {dev_addr=}, {key=} to {value}")
         self.logger.error(f"async_update_local_entry: {data=}")
         self.async_set_updated_data(data)

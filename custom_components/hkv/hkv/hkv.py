@@ -38,6 +38,7 @@ class HKV():
         self._known_addr = []
         self._plock = threading.Lock()
         self._handler = {}
+        self._block_handlers = False
     
     def recv(self):
         while True:
@@ -47,7 +48,7 @@ class HKV():
                     for iline,line in enumerate(data.split(b'\n')):
                         line = line.strip()
                         if len(line)==0: continue
-                        # print(f"RX{self.name}-{iline:02d}: {line}")
+                        #print(f"RX{self.name}-{iline:02d}: {line}")
                         try:
                             packet = HKVPacket.from_doc(line)
                             if not packet.SRC in self._known_addr:
@@ -68,13 +69,17 @@ class HKV():
                             #self._packets.put(packet,timeout=1)
                             with self._plock:
                                 self._packets.append(packet)
+                            
+                            if self._block_handlers:
+                                continue
+                            
                             for pt,handlers in self._handler.items():
                                 if isinstance(packet,pt):
                                     for h in handlers.copy():
                                         h(packet)
                                     
                         except Exception as e:
-                            _LOGGER.error(f"{e}")
+                            _LOGGER.error(f"{e}",exc_info=True)
             except:
                 pass
             time.sleep(.1)
@@ -219,10 +224,14 @@ class HKV():
         return self._write(evt, evt_err, SRC=99, DST=int(dst), TYPE="T", TTYPE="M", timeout=timeout, **kargs)
       
     def _write(self, evt=None, evt_err=None, timeout=30, **kw):
-        data = json.dumps(kw)+'\r\n'
+        data = json.dumps(kw)+'\n'
+        return self._write_raw(data, evt=evt, evt_err=evt_err, timeout=timeout)
+        
+    def _write_raw(self, data, evt=None, evt_err=None, timeout=30):
+        
         n = self._dev.write(data.encode())
         #time.sleep(.1)
-        _LOGGER.info(f"{n} bytes written.(data: {data}")
+        _LOGGER.info(f"{n} bytes written. (data: {data}")
         if evt:
             evt.clear()
             if evt_err is None:

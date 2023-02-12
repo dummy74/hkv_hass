@@ -52,34 +52,37 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, asyn
             _LOGGER.debug(f"{name=}")
             _LOGGER.debug(f"{val=}")
     
-            if name == 'SENSOR':
-                value_fn = lambda data, slave, key: data['devices'][slave][key.split('_')[0]][key.split('_')[1]]
-                for name2,val2 in val.items():
-                    if name2.startswith('ADDR'):
-                        value_fn = lambda data, slave, key: data['devices'][slave][key.split('_')[0]][key.split('_')[1]][2:]
-                    if name2.startswith('ADDR') or name=='NUM':  
-                        descriptions.append(HKVEntityDescription(
-                            key=name+'_'+name2,
-                            name=name+' '+name2,
-                            native_unit_of_measurement=None,
-                            state_class=SensorStateClass.TOTAL,
-                            slave=dev_addr,
-                            device_class=None,
-                            entity_type=None,
-                            value_fn = value_fn,
-                            ))
-                
-            elif name.startswith('Temp'):
-                descriptions.append(HKVEntityDescription(
-                    key=name,
-                    name=name.replace('_', ' '),
-                    native_unit_of_measurement='°C',
-                    state_class=SensorStateClass.MEASUREMENT,
-                    slave=dev_addr,
-                    device_class=SensorDeviceClass.TEMPERATURE,
-                    entity_type=None,
+            # if name == 'SENSOR':
+            #     value_fn = lambda data, slave, key: data['devices'][slave][key.split('_')[0]][key.split('_')[1]]
+            #     for name2,val2 in val.items():
+            #         if name2.startswith('ADDR'):
+            #             value_fn = lambda data, slave, key: data['devices'][slave][key.split('_')[0]][key.split('_')[1]][2:]
+            #         if name2.startswith('ADDR') or name=='NUM':  
+            #             descriptions.append(HKVEntityDescription(
+            #                 key=name+'_'+name2,
+            #                 name=name+' '+name2,
+            #                 native_unit_of_measurement=None,
+            #                 state_class=SensorStateClass.TOTAL,
+            #                 slave=dev_addr,
+            #                 device_class=None,
+            #                 entity_type=None,
+            #                 value_fn = value_fn,
+            #                 ))
+            #
+            # el
+            if name in ['TDATA']:
+                for i,t in enumerate(val):
+                    descriptions.append(HKVEntityDescription(
+                        key=f"{name}_{i}",
+                        name=f"Temp {i+1}",
+                        native_unit_of_measurement='°C',
+                        state_class=SensorStateClass.MEASUREMENT,
+                        slave=dev_addr,
+                        device_class=SensorDeviceClass.TEMPERATURE,
+                        entity_type=None,
+                        value_fn=lambda data, slave, key: data['devices'][slave][key.split('_')[0]][int(key.split('_')[1])-1],
                 ))
-            elif name=='CNT':
+            elif name in ['MCNT','SNUM','RNUM','CCNT']:
                 descriptions.append(HKVEntityDescription(
                     key=name,
                     name=name.replace('_', ' '),
@@ -173,7 +176,7 @@ class HKVSensor(CoordinatorEntity, SensorEntity):
                 (DOMAIN, self.unique_id.split('_')[0])
             },
             name=self.unique_id.split('_')[0],
-            model='HKV_Temp_Heltec' if self.unique_id.split('_')[0].startswith('59') else 'HKV_Temp_D1_mini', #self.unique_id.split('_')[0],
+            model='HKV_Temp_Heltec' if self.unique_id.split('_')[0].startswith('59') else 'HKV_Coordinator' if self.unique_id.split('_')[0].startswith('99') else 'HKV_Temp_D1_mini', #self.unique_id.split('_')[0],
             manufacturer="holger", # to be dynamically set for gavazzi and redflow
         )
         

@@ -23,25 +23,29 @@ class HKVPacket():
         return HKVPacket.from_data(data)
     @classmethod
     def from_data(cls,data):
-        if data['TYPE']=='L':
-            return HKVLogPacket.from_data(data)
-        elif data['TYPE']=='A':
-            return HKVAckPacket.from_data(data)
-        elif data['TYPE']=='N':
-            return HKVNAckPacket.from_data(data)
-        elif data['TYPE']=='H':
-            return HKVHelloPacket.from_data(data)
-        elif data['TYPE']=='D':
-            return HKVDataPacket.from_data(data)
-        elif data['TYPE']=='R':
-            return HKVRelaisChannelPacket.from_data(data)
-        elif data['TYPE']=='T':
-            return HKVTempChannelPacket.from_data(data)
-        else:
-            return cls(data)
+        try:
+            if data['TYPE']=='L':
+                return HKVLogPacket.from_data(data)
+            elif data['TYPE']=='A':
+                return HKVAckPacket.from_data(data)
+            elif data['TYPE']=='N':
+                return HKVNAckPacket.from_data(data)
+            elif data['TYPE']=='H':
+                return HKVHelloPacket.from_data(data)
+            elif data['TYPE']=='D' and data['DTYPE'] in ['T','R','S','C']:
+                return HKVDataPacket.from_data(data)
+            elif data['TYPE']=='R' and data['RTYPE']=='A':
+                return HKVRelaisChannelPacket.from_data(data)
+            elif data['TYPE']=='T' and data['TTYPE']=='A':
+                return HKVTempChannelPacket.from_data(data)
+            else:
+                return cls(data)
+        except:
+                return cls(data)
+            
         
     def __repr__(self):
-        return f"{self.__class__.__name__}({', '.join([f.name+'='+getattr(self,f.name) for f in fields(self) if not getattr(self,f.name) is None])})"
+        return f"{self.__class__.__name__}({', '.join([f.name+'='+str(getattr(self,f.name)) for f in fields(self) if not getattr(self,f.name) is None])})"
     
 @dataclass
 class HKVAckPacket(HKVPacket):
@@ -74,7 +78,7 @@ class HKVLogPacket(HKVPacket):
     
 @dataclass
 class HKVChannelPacket(HKVPacket):
-    ID:str=field(init=False)
+    # ID:str=field(init=False)
     CHAN:int=field(init=False)
     VAL:float=field(init=False)
     @classmethod
@@ -84,7 +88,7 @@ class HKVChannelPacket(HKVPacket):
 @dataclass
 class HKVTempChannelPacket(HKVChannelPacket):
     TTYPE:str=field(init=False)
-    CNT:int=field(init=False)
+    MCNT:int=field(init=False)
     @classmethod
     def from_data(cls,data):
         return cls(data)
@@ -100,7 +104,7 @@ class HKVRelaisChannelPacket(HKVChannelPacket):
 @dataclass
 class HKVDataPacket(HKVPacket):
     DTYPE:str=field(init=False)
-    ID:str=field(init=False)
+    # ID:str=field(init=False)
     @classmethod
     def from_data(cls,data):
         if data['DTYPE']=='S':
@@ -116,21 +120,9 @@ class HKVDataPacket(HKVPacket):
         
 @dataclass
 class HKVTempDataPacket(HKVDataPacket):
-    CNT:int=field(init=False,default=None)
-    Temp1:float=field(init=False,default=None)
-    Temp2:float=field(init=False,default=None)
-    Temp3:float=field(init=False,default=None)
-    Temp4:float=field(init=False,default=None)
-    Temp5:float=field(init=False,default=None)
-    Temp6:float=field(init=False,default=None)
-    Temp7:float=field(init=False,default=None)
-    Temp8:float=field(init=False,default=None)
-    Temp9:float=field(init=False,default=None)
-    Temp10:float=field(init=False,default=None)
-    Temp11:float=field(init=False,default=None)
-    Temp12:float=field(init=False,default=None)
-    Temp13:float=field(init=False,default=None)
-    Temp14:float=field(init=False,default=None)
+    MCNT:int=field(init=False,default=0)
+    SNUM:int=field(init=False,default=0)
+    TDATA:list[float]=field(init=False,default_factory=list)
     @classmethod
     def from_data(cls,data):
         return cls(data)
@@ -139,12 +131,8 @@ class HKVTempDataPacket(HKVDataPacket):
         return f"{self.__class__.__name__}({', '.join([f.name+'='+str(getattr(self,f.name)) for f in fields(self) if not getattr(self,f.name) is None])})"
 @dataclass
 class HKVRelaisDataPacket(HKVDataPacket):
-    Relais1:bool=field(init=False,default=None)
-    Relais2:bool=field(init=False,default=None)
-    Relais3:bool=field(init=False,default=None)
-    Relais4:bool=field(init=False,default=None)
-    Relais5:bool=field(init=False,default=None)
-    Relais6:bool=field(init=False,default=None)
+    RNUM:int=field(init=False,default=0)
+    RDATA:list[bool]=field(init=False,default_factory=list)
     @classmethod
     def from_data(cls,data):
         return cls(data)
@@ -153,26 +141,8 @@ class HKVRelaisDataPacket(HKVDataPacket):
         return f"{self.__class__.__name__}({', '.join([f.name+'='+str(getattr(self,f.name)) for f in fields(self) if not getattr(self,f.name) is None])})"
 @dataclass
 class HKVConnectionDataPacket(HKVDataPacket):
-    ADDR0:int=field(init=False,default=None)
-    STYPE0:int=field(init=False,default=None)
-    ADDR1:int=field(init=False,default=None)
-    STYPE1:int=field(init=False,default=None)
-    ADDR2:int=field(init=False,default=None)
-    STYPE2:int=field(init=False,default=None)
-    ADDR3:int=field(init=False,default=None)
-    STYPE3:int=field(init=False,default=None)
-    ADDR4:int=field(init=False,default=None)
-    STYPE4:int=field(init=False,default=None)
-    ADDR5:int=field(init=False,default=None)
-    STYPE5:int=field(init=False,default=None)
-    ADDR6:int=field(init=False,default=None)
-    STYPE6:int=field(init=False,default=None)
-    ADDR7:int=field(init=False,default=None)
-    STYPE7:int=field(init=False,default=None)
-    ADDR8:int=field(init=False,default=None)
-    STYPE8:int=field(init=False,default=None)
-    ADDR9:int=field(init=False,default=None)
-    STYPE9:int=field(init=False,default=None)
+    CCNT:int=field(init=False,default=0)
+    CDATA:list[dict]=field(init=False,default_factory=list)
     @classmethod
     def from_data(cls,data):
         return cls(data)
@@ -182,12 +152,18 @@ class HKVConnectionDataPacket(HKVDataPacket):
 
 @dataclass
 class HKVStatusDataPacket(HKVDataPacket):
-    DISPLAY:str=field(init=False,default=None)
-    USB:str=field(init=False,default=None)
-    LORA:str=field(init=False,default=None)
-    RS485:str=field(init=False,default=None)
-    RELAIS:str=field(init=False,default=None)
-    SENSOR:str=field(init=False,default=None)
+    ID:str=field(init=False,default=None)
+    MSEC:int=field(init=False,default=None)
+    SNUM:int=field(init=False,default=None)
+    MCNT:int=field(init=False,default=None)
+    RNUM:int=field(init=False,default=None)
+    CCNT:int=field(init=False,default=None)
+    # DISPLAY:str=field(init=False,default=None)
+    # USB:str=field(init=False,default=None)
+    # LORA:str=field(init=False,default=None)
+    # RS485:str=field(init=False,default=None)
+    # RELAIS:str=field(init=False,default=None)
+    # SENSOR:str=field(init=False,default=None)
     @classmethod
     def from_data(cls,data):
         return cls(data)
@@ -199,6 +175,7 @@ if __name__=='__main__':
     import time
     
     print(HKVRelaisChannelPacket.from_doc('{"SRC":5955124,"DST":99,"TYPE":"R","RTYPE":"A","ID":"HKV-EG","CHAN":6,"VAL":1}'))
+    print(HKVRelaisChannelPacket.from_doc('{"SRC":5955124,"DST":99,"TYPE":"D","DTYPE":"T","DATA":[1,2,3,4]}'))
     
     # print(HKVPacket.from_doc('{"SRC":1,"DST":2,"TYPE":"D","DTYPE":"T","ID":"HKV-BASE","Temp0":20.0,"Temp1":20.1,"Temp2":20.2,"Temp11":20.11}'))
     # print(HKVPacket.from_doc('{"SRC":1,"DST":2,"TYPE":"D","DTYPE":"R","ID":"HKV-BASE","Relais1":1,"Relais2":0,"Relais3":1,"Relais4":0}'))
@@ -209,7 +186,7 @@ if __name__=='__main__':
     #     print(f"HKVTempDataPacket.{f.name}")
     # #time.sleep(2)
     # print(HKVTempDataPacket(dict(SRC=1, DST=2, TYPE='D', DTYPE='T', ID='HKV-BASE', Temp0=20.0, Temp1=20.1, Temp2=20.2, Temp3=None, Temp4=None, Temp5=None, Temp6=None, Temp7=None, Temp8=None, Temp9=None, Temp10=None, Temp11=20.11)))
-    # print(HKVRelaisDataPacket(dict(SRC=1, DST=2, TYPE='D', DTYPE='R', ID='HKV-BASE', Relais1=1, Relais2=0, Relais3=1, Relais4=0, Relais5=None, Relais6=None)))
+    print(HKVRelaisDataPacket(dict(SRC=1, DST=2, TYPE='D', DTYPE='R', ID='HKV-BASE', RNUM=2, RDATA=[1,1])))
     # print(HKVLogPacket(dict(SRC=1, DST=2, TYPE='L', LTYPE='D', MSG='Debug LOG Message.')))
     # print(HKVStatusDataPacket(dict(SRC=1, DST=2, TYPE='D', DTYPE='S', ID='HKV-BASE', DISPLAY='OK', USB='OK', LORA='OK', RS485='OK', RELAIS='OK', SENSOR='OK')))
     # print(HKVStatusDataPacket({"SRC":5954092,"DST":99,"TYPE":"D","DTYPE":"S","ID":"HKV-BASE","DISPLAY":"Display Init .. DONE!","USB":"","LORA":"LoRa Init ..   DONE!","RS485":"RS485 Init ..  IGNORE!","RELAIS":"Relais Init .. DONE!","SENSOR":"Sensor Init .. DONE! -> 1"}))

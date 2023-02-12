@@ -114,7 +114,7 @@ class HKVBinarySensor(CoordinatorEntity, BinarySensorEntity):
                 (DOMAIN, self.unique_id.split('_')[0])
             },
             name=self.unique_id.split('_')[0],
-            model='HKV_Temp_Heltec' if self.unique_id.split('_')[0].startswith('59') else 'HKV_Temp_D1_mini', #self.unique_id.split('_')[0],
+            model='HKV_Temp_Heltec' if self.unique_id.split('_')[0].startswith('59') else 'HKV_Coordinator' if self.unique_id.split('_')[0].startswith('99') else 'HKV_Temp_D1_mini', #self.unique_id.split('_')[0],
             manufacturer="holger", # to be dynamically set for gavazzi and redflow
         )
         
