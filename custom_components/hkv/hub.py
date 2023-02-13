@@ -42,22 +42,22 @@ class HKVHub:
     async def scan_connected_devices(self):
         _LOGGER.error(f"scan_connected_devices: ...")
         devices={}
-        for addr in self.hkv._known_addr:
-            ack,pack = await hass.async_add_executor_job(self.hkv.hello,addr) #(dst=addr)
-            if ack:
-                devices[addr] = {
-                    'ID': pack.ID,
-                    #'temps':self.hkv.get_temps(dst=addr)[1],
-                    #'relais':self.hkv.get_relais(dst=addr)[1],
-                    #'connections':self.hkv.get_connections(dst=addr)[1],
-                    }
-                #ack,tpack = self.hkv.get_temps(dst=addr)
-                #if ack:
-                #    devices[addr].update(asdict(tpack))
-                #ack,rpack = self.hkv.get_relais(dst=addr)
-                #if ack:
-                #    devices[addr].update(asdict(rpack))
-        _LOGGER.info(f"{addr=}: {devices[addr]=}")
+        # for addr in self.hkv._known_addr:
+        #     ack,pack = await hass.async_add_executor_job(self.hkv.hello,addr) #(dst=addr)
+        #     if ack:
+        #         devices[addr] = {
+        #             'ID': pack.ID,
+        #             #'temps':self.hkv.get_temps(dst=addr)[1],
+        #             #'relais':self.hkv.get_relais(dst=addr)[1],
+        #             #'connections':self.hkv.get_connections(dst=addr)[1],
+        #             }
+        #         #ack,tpack = self.hkv.get_temps(dst=addr)
+        #         #if ack:
+        #         #    devices[addr].update(asdict(tpack))
+        #         #ack,rpack = self.hkv.get_relais(dst=addr)
+        #         #if ack:
+        #         #    devices[addr].update(asdict(rpack))
+        #     _LOGGER.info(f"{addr=}: {devices[addr]=}")
         return {"devices": devices}
         
     async def fetch_data(self, hass):
