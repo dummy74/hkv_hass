@@ -56,7 +56,7 @@ class HKVCoordinator(DataUpdateCoordinator):
         
         self.logger.info(f"Handle HKV packet data update {self.data=}")
         
-        asyncio.run_coroutine_threadsafe(self.async_set_updated_data(self.data), self.hass.loop)
+        self.async_set_updated_data(self.data)
         
         
 
