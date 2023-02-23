@@ -96,7 +96,8 @@ class HKVSwitch(CoordinatorEntity, SwitchEntity):
             retry = 5
             while retry:
                 retry -= 1
-                success,_ = self.coordinator.hkv.set_relais((self.description.keynum,1),dst=self.description.slave)
+                res = self.coordinator.hkv.set_relais((self.description.keynum,1),dst=self.description.slave)
+                success = res[0][0]
                 if success: break
         await self.coordinator.async_update_local_entry(dev_addr=self.description.slave, key=self.description.key, value=1 if success else 0)
 
@@ -108,7 +109,8 @@ class HKVSwitch(CoordinatorEntity, SwitchEntity):
             retry = 5
             while retry:
                 retry -= 1
-                success,_ = self.coordinator.hkv.set_relais((self.description.keynum,0),dst=self.description.slave)
+                res = self.coordinator.hkv.set_relais((self.description.keynum,0),dst=self.description.slave)
+                success = res[0][0]
                 if success: break
         await self.coordinator.async_update_local_entry(dev_addr=self.description.slave, key=self.description.key, value=0 if success else 1)
 
