@@ -91,16 +91,26 @@ class HKVSwitch(CoordinatorEntity, SwitchEntity):
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the device."""
         #self.coordinator.set_value(dev_addr=self.description.slave, key=self.description.key, keynum=self.description.keynum, value=1)
+        success = False
         if self.description.key.startswith('RDATA'):
-            self.coordinator.hkv.set_relais((self.description.keynum,1),dst=self.description.slave)
-        await self.coordinator.async_update_local_entry(dev_addr=self.description.slave, key=self.description.key, value=1)
+            retry = 5
+            while retry:
+                retry -= 1
+                success,_ = self.coordinator.hkv.set_relais((self.description.keynum,1),dst=self.description.slave)
+                if success: break
+        await self.coordinator.async_update_local_entry(dev_addr=self.description.slave, key=self.description.key, value=1 if success else 0)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off the device."""
         #self.coordinator.set_value(dev_addr=self.description.slave, key=self.description.key, keynum=self.description.keynum, value=0)
+        success = False
         if self.description.key.startswith('RDATA'):
-            self.coordinator.hkv.set_relais((self.description.keynum,0),dst=self.description.slave)
-        await self.coordinator.async_update_local_entry(dev_addr=self.description.slave, key=self.description.key, value=0)
+            retry = 5
+            while retry:
+                retry -= 1
+                success,_ = self.coordinator.hkv.set_relais((self.description.keynum,0),dst=self.description.slave)
+                if success: break
+        await self.coordinator.async_update_local_entry(dev_addr=self.description.slave, key=self.description.key, value=0 if success else 1)
 
     @property
     def is_on(self) -> bool:
