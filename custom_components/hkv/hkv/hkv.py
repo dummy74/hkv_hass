@@ -46,7 +46,7 @@ class HKV():
                 for iline,line in enumerate(self._dev.readlines()):
                     line = line.strip()
                     if len(line)==0: continue
-                    print(f"RX{self.name}-{iline:02d}: {line=}")
+                    #print(f"RX{self.name}-{iline:02d}: {line=}")
                     try:
                         packet = HKVPacket.from_doc(line)
                         if not packet.SRC in self._known_addr:
@@ -77,6 +77,7 @@ class HKV():
                                     h(packet)
                                 
                     except Exception as e:
+                        _LOGGER.error(f"RX{self.name}-{iline:02d}: {line=}")
                         _LOGGER.error(f"{e}",exc_info=True)
             except:
                 pass
