@@ -42,15 +42,15 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     #     your_validate_func, data["username"], data["password"]
     # )
 
-    hub = HKVHub(data[CONF_DEV], data[CONF_BAUD])
-    try:
-        hub.connect()
-        _LOGGER.debug("connection was succesfull")
-        discovered_devices = await hub.scan_connected_devices() 
-        _LOGGER.debug("successfully discovered devices")  
-    except:
-        _LOGGER.error("failed to connect to the HKV device") 
-        raise CannotConnect()
+    # hub = HKVHub(data[CONF_DEV], data[CONF_BAUD])
+    # try:
+    #     hub.connect()
+    #     _LOGGER.debug("connection was succesfull")
+    #     discovered_devices = await hub.scan_connected_devices() 
+    #     _LOGGER.debug("successfully discovered devices")  
+    # except:
+    #     _LOGGER.error("failed to connect to the HKV device") 
+    #     raise CannotConnect()
 
     # If you cannot connect:
     # throw CannotConnect
