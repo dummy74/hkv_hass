@@ -88,7 +88,7 @@ class HKVHub:
             #dev = {'temp_transmit_interval':30000,'temp_measure_interval':30000,'CNT':None}
             success = False
             while not success:
-                success,state_pck = self.hkv.get_status(dst=0,timeout=60)
+                success,state_pck = self.hkv.get_status(dst=0,timeout=10)
             _LOGGER.warning(state_pck)
             if state_pck is not None:
                 devices[state_pck.SRC] = dev
@@ -151,7 +151,7 @@ class HKVHub:
                         devices[addr] = dev
                         success = False
                         while not success:
-                            success,state_pck = self.hkv.get_status(dst=addr,timeout=20)
+                            success,state_pck = self.hkv.get_status(dst=addr,timeout=10)
                         _LOGGER.warning(f"{state_pck=}")
                         if state_pck is not None:
                             dev['ID'] = state_pck.ID
@@ -167,7 +167,7 @@ class HKVHub:
                             # dev['SENSOR'] = state_pck.SENSOR
                         success = False
                         while not success:
-                            success,temps_pck = self.hkv.get_temps(dst=addr,timeout=20)
+                            success,temps_pck = self.hkv.get_temps(dst=addr,timeout=10)
                         _LOGGER.warning(f"{temps_pck=}")
                         if temps_pck is not None:
                             dev['SNUM'] = temps_pck.SNUM
@@ -183,7 +183,7 @@ class HKVHub:
                                     dev[tempi] = None
                         success = False
                         while not success:
-                            success,relais_pck = self.hkv.get_relais(dst=addr,timeout=20)
+                            success,relais_pck = self.hkv.get_relais(dst=addr,timeout=10)
                         _LOGGER.warning(f"{relais_pck=}")
                         if relais_pck is not None:
                             dev['RNUM'] = relais_pck.RNUM
