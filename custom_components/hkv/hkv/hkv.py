@@ -43,12 +43,54 @@ class HKV():
     def recv(self):
         while True:
             try: 
+                for iline,line in enumerate(self._dev.readlines()):
+                    line = line.strip()
+                    if len(line)==0: continue
+                    print(f"RX{self.name}-{iline:02d}: {line=}")
+                    try:
+                        packet = HKVPacket.from_doc(line)
+                        if not packet.SRC in self._known_addr:
+                            self._known_addr.append(packet.SRC) 
+                        if isinstance(packet,HKVLogPacket):
+                            levels= defaultdict(default_factory=lambda:logging.CRITICAL)
+                            levels.update({'D':logging.DEBUG,
+                                           'I':logging.INFO,
+                                           'W':logging.WARNING,
+                                           'E':logging.ERROR})
+                            logging.getLogger(f"{__name__}.SRC{packet.SRC}").log(levels[packet.LTYPE],f"{packet.MSG}")
+                            continue
+                        _LOGGER.debug(f"HKV-{self.name}-{iline:02d}: {packet}")
+                        event = self._events.get(packet.__class__,None)
+                        if event:
+                            event.param = packet
+                            event.set()
+                        #self._packets.put(packet,timeout=1)
+                        with self._plock:
+                            self._packets.append(packet)
+                        
+                        if self._block_handlers:
+                            continue
+                        
+                        for pt,handlers in self._handler.items():
+                            if isinstance(packet,pt):
+                                for h in handlers.copy():
+                                    h(packet)
+                                
+                    except Exception as e:
+                        _LOGGER.error(f"{e}",exc_info=True)
+            except:
+                pass
+            time.sleep(.1)
+            
+    def recv_bak(self):
+        while True:
+            try: 
                 data = self._dev.readall()
                 if len(data):
                     for iline,line in enumerate(data.split(b'\n')):
                         line = line.strip()
                         if len(line)==0: continue
-                        #print(f"RX{self.name}-{iline:02d}: {line}")
+                        print(f"RX{self.name}-{iline:02d}: {line=}")
                         try:
                             packet = HKVPacket.from_doc(line)
                             if not packet.SRC in self._known_addr:
@@ -252,14 +294,16 @@ if __name__=='__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--dev1",default="/dev/ttyUSB0", help="Serial device")
     parser.add_argument("--dev2",default=None, help="Serial device")
+    parser.add_argument("--baud1",type=int,default=115200, help="Serial baudrate")
+    parser.add_argument("--baud2",type=int,default=115200, help="Serial baudrate")
     args = parser.parse_args()
     
     hkv1 = HKV(name='1')
     hkv2 = HKV(name='2')
     if args.dev1:
-        hkv1.connect(args.dev1)
+        hkv1.connect(args.dev1,baud=args.baud1)
     if args.dev2:
-        hkv2.connect(args.dev2)
+        hkv2.connect(args.dev2,baud=args.baud2)
     #some_test_code(hkv1,hkv2)
     IPython.embed()
     
