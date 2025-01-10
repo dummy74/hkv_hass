@@ -18,20 +18,6 @@ from .coordinator import HKVCoordinator
 from .base import HKVBaseEntityDescription
 from .const import DOMAIN, ReadEntityType, TextReadEntityType, BoolReadEntityType
 
-from homeassistant.const import (
-    PERCENTAGE, 
-    UnitOfEnergy, 
-    UnitOfPower,
-    ELECTRIC_POTENTIAL_VOLT,
-    ELECTRIC_CURRENT_AMPERE,
-    FREQUENCY_HERTZ,
-    TIME_SECONDS,
-    UnitOfTemperature,
-    UnitOfVolume,
-    UnitOfSpeed,
-    UnitOfPressure
-)
-
 from collections.abc import Callable
 from homeassistant.helpers.typing import StateType
 
