@@ -7,8 +7,6 @@ from typing import Optional, cast
 
 from homeassistant import config_entries
 from homeassistant.components.number import NumberEntity, NumberEntityDescription, NumberMode, DOMAIN as NUMBER_DOMAIN
-
-
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -31,15 +29,11 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up victron switch devices."""
-    _LOGGER.debug("attempting to setup button entities")
+    _LOGGER.debug("attempting to setup number entities")
     coordinator: HKVCoordinator = hass.data[DOMAIN][config_entry.entry_id]
-    #_LOGGER.warning(coordinator.get_data()["devices"])
     descriptions = []
-    #TODO cleanup
     devices = coordinator.get_data()["devices"]
     for dev_addr, dev_data in devices.items():
-        # _LOGGER.error(f"{dev_addr=}")
-        # _LOGGER.error(f"{dev_data=}")
         descriptions.append(HKVEntityDescription(
             key='temp_measure_interval',
             name='Temp. Mess-Interval',
@@ -62,59 +56,64 @@ async def async_setup_entry(
         ))
 
     entities = []
-    entity = {}
     for description in descriptions:
-        entity = description
-        entities.append(
-            HKVNumber(
-                coordinator,
-                entity
-                ))
-    _LOGGER.debug("adding number")
+        entities.append(HKVNumber(coordinator, description))
+    _LOGGER.debug("adding number entities")
     async_add_entities(entities)
-    _LOGGER.debug("adding numbering")
 
 @dataclass
 class HKVEntityDescription(NumberEntityDescription, HKVBaseEntityDescription):
     """Describes HKV number entity."""
 
-
-class HKVNumber(NumberEntity):
+class HKVNumber(CoordinatorEntity, NumberEntity):
     """HKV number."""
 
     description: HKVEntityDescription
 
     def __init__(self, coordinator: HKVCoordinator, description: HKVEntityDescription) -> None:
         """Initialize the entity."""
+        super().__init__(coordinator)
         self.coordinator = coordinator
         self.description = description
         self._attr_name = f"{description.name}"
 
         actual_id = description.slave
 
-        self._attr_native_value = self.coordinator.get_data()['devices'][self.description.slave][self.description.key]
+        try:
+            self._attr_native_value = self.coordinator.get_data()['devices'][self.description.slave][self.description.key]
+        except KeyError:
+            self._attr_native_value = self.description.native_min_value
 
         self._attr_unique_id = f"{actual_id}_{self.description.key}"
         self.entity_id = f"{NUMBER_DOMAIN}.{DOMAIN}_{actual_id}_{self.description.key}"
 
-        self._attr_mode = NumberMode.BOX #SLIDER
-  
-
+        self._attr_mode = NumberMode.BOX  # SLIDER
 
     async def async_set_native_value(self, value: float) -> None:
         """Update the current value."""
-        if self.description.key == 'temp_measure_interval':
-            self.coordinator.hkv.set_temps_measure_period(delay=1000, period=int(value), dst=self.description.slave)
-        elif self.description.key == 'temp_transmit_interval':
-            self.coordinator.hkv.set_temps_transmit_period(delay=1000, period=int(value), dst=self.description.slave)
-        await self.coordinator.async_update_local_entry(dev_addr=self.description.slave, key=self.description.key, value=value)
-
+        success = False
+        retry = 3
+        while retry > 0:
+            try:
+                if self.description.key == 'temp_measure_interval':
+                    res = await self.coordinator.hkv.set_temps_measure_period(delay=1000, period=int(value), dst=self.description.slave)
+                elif self.description.key == 'temp_transmit_interval':
+                    res = await self.coordinator.hkv.set_temps_transmit_period(delay=1000, period=int(value), dst=self.description.slave)
+                success = res[0] if res else False  # Assuming res is (success, packet)
+                if success:
+                    break
+            except Exception as e:
+                _LOGGER.error(f"Set value error: {e}")
+            retry -= 1
+            await asyncio.sleep(2 ** (3 - retry))  # Exponential backoff
+        if success:
+            await self.coordinator.async_update_local_entry(dev_addr=self.description.slave, key=self.description.key, value=value)
 
     @property
     def native_value(self) -> int:
         """Return the state of the entity."""
-        data=self.coordinator.get_data()
-        return data['devices'][self.description.slave][self.description.key]
+        data = self.coordinator.get_data()
+        return data['devices'][self.description.slave].get(self.description.key, self.description.native_min_value)
 
     @property
     def native_step(self) -> float | None:
@@ -131,15 +130,16 @@ class HKVNumber(NumberEntity):
     @property
     def available(self) -> bool:
         try:
-            if self.description.key == 'temp_measure_interval':
-                return self.description.slave in self.coordinator.get_data()["devices"]
-            elif self.description.key == 'temp_transmit_interval':
-                return self.description.slave in self.coordinator.get_data()["devices"]
-            return True
+            return self.description.slave in self.coordinator.get_data()["devices"]
         except Exception as e:
             _LOGGER.critical(e)
             _LOGGER.info(self.coordinator.get_data())
             return False
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        self.async_write_ha_state()
 
     @property
     def device_info(self) -> entity.DeviceInfo:
@@ -149,6 +149,6 @@ class HKVNumber(NumberEntity):
                 (DOMAIN, self.unique_id.split('_')[0])
             },
             name=self.unique_id.split('_')[0],
-            model='HKV_Temp_Heltec' if self.unique_id.split('_')[0].startswith('59') else 'HKV_Temp_D1_mini', #self.unique_id.split('_')[0],
-            manufacturer="holger", # to be dynamically set for gavazzi and redflow
+            model='HKV_Temp_Heltec' if self.unique_id.split('_')[0].startswith('59') else 'HKV_Temp_D1_mini',
+            manufacturer="holger",
         )

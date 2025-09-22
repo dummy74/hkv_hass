@@ -1,51 +1,57 @@
 import json
-from dataclasses import dataclass,InitVar,fields,field
+import logging
+from dataclasses import dataclass, InitVar, fields, field
+
+
+_LOGGER = logging.getLogger(__name__)
 
 @dataclass
 class HKVPacket():
-    data:InitVar[dict]
-    SRC:int=field(init=False)
-    DST:int=field(init=False)
-    TYPE:str=field(init=False)
-    EXTRA_DATA:dict=field(init=False)
-  
-    def __post_init__(self,data):
-        #print(f"HKVPacket.__post_init__: {data}")
+    data: InitVar[dict]
+    SRC: int = field(init=False)
+    DST: int = field(init=False)
+    TYPE: str = field(init=False)
+    EXTRA_DATA: dict = field(init=False)
+
+    def __post_init__(self, data):
         self.EXTRA_DATA = data.copy()
         for f in fields(self):
             if f.name in data:
-                setattr(self,f.name,data[f.name])
+                setattr(self, f.name, data[f.name])
                 self.EXTRA_DATA.pop(f.name)
-        
+
     @staticmethod
-    def from_doc(doc:str):
+    def from_doc(doc: str):
         data = json.loads(doc)
         return HKVPacket.from_data(data)
+
     @classmethod
-    def from_data(cls,data):
+    def from_data(cls, data):
         try:
-            if data['TYPE']=='L':
+            if data['TYPE'] == 'L':
                 return HKVLogPacket.from_data(data)
-            elif data['TYPE']=='A':
+            elif data['TYPE'] == 'A':
                 return HKVAckPacket.from_data(data)
-            elif data['TYPE']=='N':
+            elif data['TYPE'] == 'N':
                 return HKVNAckPacket.from_data(data)
-            elif data['TYPE']=='H':
+            elif data['TYPE'] == 'H':
                 return HKVHelloPacket.from_data(data)
-            elif data['TYPE']=='D' and data['DTYPE'] in ['T','R','S','C']:
+            elif data['TYPE'] == 'D' and data.get('DTYPE') in ['T', 'R', 'S', 'C']:
                 return HKVDataPacket.from_data(data)
-            elif data['TYPE']=='R' and data['RTYPE']=='A':
+            elif data['TYPE'] == 'R' and data.get('RTYPE') == 'A':
                 return HKVRelaisChannelPacket.from_data(data)
-            elif data['TYPE']=='T' and data['TTYPE']=='A':
+            elif data['TYPE'] == 'T' and data.get('TTYPE') == 'A':
                 return HKVTempChannelPacket.from_data(data)
             else:
                 return cls(data)
-        except:
-                return cls(data)
-            
-        
+        except KeyError as e:
+            _LOGGER.error(f"Missing key in data: {e}")
+            return cls(data)
+
     def __repr__(self):
-        return f"{self.__class__.__name__}({', '.join([f.name+'='+str(getattr(self,f.name)) for f in fields(self) if not getattr(self,f.name) is None])})"
+        return f"{self.__class__.__name__}({', '.join([f'{f.name}={getattr(self, f.name)}' for f in fields(self) if getattr(self, f.name) is not None])})"
+
+# Rest der Klassen (HKVAckPacket, etc.) bleibt gleich, nur __repr__ angepasst wo nötig.
     
 @dataclass
 class HKVAckPacket(HKVPacket):

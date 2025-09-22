@@ -19,104 +19,82 @@ from homeassistant.helpers.update_coordinator import (
 )
 from .const import DOMAIN
 from .hub import HKVHub
-from .hkv.packets import HKVTempDataPacket, HKVRelaisDataPacket
+from .hkv.packets import HKVTempDataPacket, HKVRelaisDataPacket, HKVStatusDataPacket, HKVConnectionDataPacket
 from dataclasses import asdict
 
 _LOGGER = logging.getLogger(__name__)
 
 class HKVCoordinator(DataUpdateCoordinator):
     """My custom coordinator."""
-    
+
     api: HKVHub
 
-    def __init__(self, hass, dev:str, baud:int, interval:int):
+    def __init__(self, hass, dev: str, baud: int, interval: int):
         """Initialize my coordinator."""
-        super().__init__(hass,_LOGGER,
+        super().__init__(hass, _LOGGER,
                          name=DOMAIN,
-                         # use push
-                         #update_interval=timedelta(seconds=interval),
+                         update_interval=timedelta(seconds=30),  # Reduziert auf 30s
                          update_method=self.async_update_data,
                          )
         self.api = HKVHub(dev, baud)
-        self.api.connect()
-        self.api.hkv.register_packet_handler(self._handle_data_packet,HKVTempDataPacket)
-        #self.api.hkv.register_packet_handler(self._handle_data_packet,HKVRelaisDataPacket)
+        hass.async_create_task(self.api.connect())  # Async connect
+        self.api.hkv.register_packet_handler(self._handle_data_packet, HKVTempDataPacket)
+        self.api.hkv.register_packet_handler(self._handle_data_packet, HKVRelaisDataPacket)
+        self.api.hkv.register_packet_handler(self._handle_data_packet, HKVStatusDataPacket)
+        self.api.hkv.register_packet_handler(self._handle_data_packet, HKVConnectionDataPacket)
         self.interval = interval
-        
+
     @property
     def hkv(self):
         return self.api.hkv
-        
-    def _handle_data_packet(self,packet):
-        self.logger.info(f"Handle HKV packet {packet}")
-        
+
+    def _handle_data_packet(self, packet):
+        _LOGGER.info(f"Handle HKV packet {packet}")
         dev_addr = packet.SRC
+        if dev_addr not in self.data['devices']:
+            self.data['devices'][dev_addr] = OrderedDict(ID='UNKNOWN')  # Default
         data = asdict(packet)
-        self.data['devices'][dev_addr].update(data)
-        
-        self.logger.info(f"Handle HKV packet data update {self.data=}")
-        
+        self.data['devices'][dev_addr].update({k: v for k, v in data.items() if k not in ['SRC', 'DST', 'TYPE']})
+        _LOGGER.info(f"Handle HKV packet data update {self.data=}")
         self.async_set_updated_data(self.data)
-        
-        
 
     async def async_update_data(self):
-        """Fetch data from API endpoint.
-
-        This is the place to pre-process the data to lookup tables
-        so entities can quickly look up their data.
-        """
-        self.logger.error("Fetching HKV data")
-        #self.logger.debug(self.decodeInfo)
+        """Fetch data from API endpoint."""
+        _LOGGER.error("Fetching HKV data")
 
         if self.data is None:
-            hub_data = OrderedDict(SRC=99,ID='HKV-Hub')
+            hub_data = OrderedDict(SRC=99, ID='HKV-Hub')
             self.data = {
                 "hub": hub_data,
                 "devices": OrderedDict()}
-        
+
         try:
-            # Note: asyncio.TimeoutError and aiohttp.ClientError are already
-            # handled by the data update coordinator.
-            async with async_timeout.timeout(60):
-                parsed_data =  await self.api.fetch_data(self.hass)
+            async with async_timeout.timeout(30):
+                parsed_data = await self.api.fetch_data(self.hass)
             self.data.update(parsed_data)
         except Exception as err:
             raise UpdateFailed(f"Error communicating with API: {err}")
 
         return self.data
-        
+
     def get_data(self):
         return self.data
 
     async def async_update_local_entry(self, dev_addr, key, value):
         data = self.data
-        key_parts = key.rsplit('_',1)
-        if len(key_parts)==2 and key_parts[-1].isnumeric():
+        key_parts = key.rsplit('_', 1)
+        if len(key_parts) == 2 and key_parts[-1].isnumeric():
             key = key_parts[0]
             index = int(key_parts[1]) - 1
             data["devices"][dev_addr][key][index] = value
         else:
             data["devices"][dev_addr][key] = value
-        self.logger.error(f"async_update_local_entry: {dev_addr=}, {key=} to {value}")
-        self.logger.error(f"async_update_local_entry: {data=}")
+        _LOGGER.error(f"async_update_local_entry: {dev_addr=}, {key=} to {value}")
+        _LOGGER.error(f"async_update_local_entry: {data=}")
         self.async_set_updated_data(data)
-    
-    # def set_value(self, dev_addr, key, keynum, value):
-    #     if key.startswith('Relais'):
-    #         self.logger.error(f"set_value: {dev_addr=}, {key=} ({keynum}) to {value}")
-    #         self.api.hkv.set_relais((keynum,1 if value else 0),dst=dev_addr)
-    
+
 class HKVEntity(CoordinatorEntity, SensorEntity):
-    """An entity using CoordinatorEntity.
-
-    The CoordinatorEntity class provides:
-      should_poll
-      async_update
-      async_added_to_hass
-      available
-
-    """
+    """An entity using CoordinatorEntity."""
 
     def __init__(self, coordinator, idx):
         """Pass coordinator to CoordinatorEntity."""
@@ -130,15 +108,5 @@ class HKVEntity(CoordinatorEntity, SensorEntity):
         self.async_write_ha_state()
 
     async def async_turn_on(self, **kwargs):
-        """Turn the light on.
-
-        Example method how to request data updates.
-        """
-        # Do the turning on.
-        # ...
-
-        # Update the data
+        """Turn the light on."""
         await self.coordinator.async_request_refresh()
-        
-        
-        
