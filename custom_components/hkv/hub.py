@@ -77,11 +77,7 @@ class HKVHub:
 
             success = False
             while not success:
-                tasks = [
-                    asyncio.create_task(self.hkv.get_status(dst=0, timeout=10)),
-                ]
-                results = await asyncio.gather(*tasks, return_exceptions=True)
-                success, state_pck = results[0] if isinstance(results[0], tuple) and results[0][0] else (False, None)
+                success, state_pck = await self.hkv.get_status(dst=0, timeout=10)
 
             if state_pck:
                 devices[state_pck.SRC] = dev
@@ -94,11 +90,7 @@ class HKVHub:
 
             success = False
             while not success:
-                tasks = [
-                    asyncio.create_task(self.hkv.get_temps(dst=0, timeout=10)),
-                ]
-                results = await asyncio.gather(*tasks, return_exceptions=True)
-                success, temps_pck = results[0] if isinstance(results[0], tuple) and results[0][0] else (False, None)
+                success, temps_pck = await self.hkv.get_temps(dst=0, timeout=10)
 
             if temps_pck:
                 dev['SNUM'] = temps_pck.SNUM
@@ -108,14 +100,10 @@ class HKVHub:
                     tempi = f"Temp{ii+1}"
                     temp = dev['TDATA'][ii]
                     dev[tempi] = temp if temp else None
-
+                    
             success = False
             while not success:
-                tasks = [
-                    asyncio.create_task(self.hkv.get_relais(dst=0, timeout=10)),
-                ]
-                results = await asyncio.gather(*tasks, return_exceptions=True)
-                success, relais_pck = results[0] if isinstance(results[0], tuple) and results[0][0] else (False, None)
+                success, relais_pck = await self.hkv.get_relais(dst=0, timeout=10)
 
             if relais_pck:
                 dev['RNUM'] = relais_pck.RNUM
@@ -127,12 +115,8 @@ class HKVHub:
 
             success = False
             while not success:
-                tasks = [
-                    asyncio.create_task(self.hkv.get_connections(dst=0, timeout=10)),
-                ]
-                results = await asyncio.gather(*tasks, return_exceptions=True)
-                success, conn_pck = results[0] if isinstance(results[0], tuple) and results[0][0] else (False, None)
-                
+                success, conn_pck = await self.hkv.get_connections(dst=0, timeout=10)
+
             # Handle connections
             if conn_pck:
                 query_tasks = []
@@ -170,11 +154,7 @@ class HKVHub:
         
         success = False
         while not success:
-            tasks = [
-                asyncio.create_task(self.hkv.get_status(dst=addr, timeout=10)),
-            ]
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-            success, state_pck = results[0] if isinstance(results[0], tuple) and results[0][0] else (False, None)
+            success, state_pck = await self.hkv.get_status(dst=addr, timeout=10)
 
         if state_pck:
             dev['ID'] = state_pck.ID
@@ -184,15 +164,9 @@ class HKVHub:
             dev['RNUM'] = state_pck.RNUM
             dev['CCNT'] = state_pck.CCNT
 
-        tasks = [
-        ]
         success = False
         while not success:
-            tasks = [
-                asyncio.create_task(self.hkv.get_temps(dst=addr, timeout=10)),
-            ]
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-            success, temps_pck = results[0] if isinstance(results[0], tuple) and results[0][0] else (False, None)
+            success, temps_pck = await self.hkv.get_temps(dst=addr, timeout=10)
 
         if temps_pck:
             dev['SNUM'] = temps_pck.SNUM
@@ -205,11 +179,7 @@ class HKVHub:
 
         success = False
         while not success:
-            tasks = [
-                asyncio.create_task(self.hkv.get_relais(dst=addr, timeout=10)),
-            ]
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-            success, relais_pck = results[0] if isinstance(results[0], tuple) and results[0][0] else (False, None)
+            success, relais_pck = await self.hkv.get_relais(dst=addr, timeout=10)
 
         if relais_pck:
             dev['RNUM'] = relais_pck.RNUM
