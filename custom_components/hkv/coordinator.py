@@ -69,7 +69,7 @@ class HKVCoordinator(DataUpdateCoordinator):
                 "devices": OrderedDict()}
 
         try:
-            async with async_timeout.timeout(30):
+            async with async_timeout.timeout(90):
                 parsed_data = await self.api.fetch_data(self.hass)
             self.data.update(parsed_data)
         except Exception as err:
