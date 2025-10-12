@@ -1,16 +1,27 @@
 import asyncio
-import serial_asyncio
-from threading import Thread, Event
-from queue import Queue
-from collections import deque
-from collections.abc import Iterable
 import json
-import time
-from .packets import *
 import logging
-from collections import defaultdict
-from collections.abc import Callable
 import threading
+import time
+from collections import defaultdict, deque
+from collections.abc import Callable, Iterable
+from threading import Event
+
+import serial_asyncio
+
+from .packets import (
+    HKVAckPacket,
+    HKVConnectionDataPacket,
+    HKVHelloPacket,
+    HKVLogPacket,
+    HKVNAckPacket,
+    HKVPacket,
+    HKVRelaisChannelPacket,
+    HKVRelaisDataPacket,
+    HKVStatusDataPacket,
+    HKVTempChannelPacket,
+    HKVTempDataPacket,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,7 +59,7 @@ class HKV():
                 if len(line) == 0: continue
                 try:
                     packet = HKVPacket.from_doc(line)
-                    if not packet.SRC in self._known_addr:
+                    if packet.SRC not in self._known_addr:
                         self._known_addr.append(packet.SRC)
                     if isinstance(packet, HKVLogPacket):
                         levels = defaultdict(lambda: logging.CRITICAL)
@@ -235,7 +246,9 @@ class HKV():
 # Rest des Codes (if __name__ == '__main__': ...) bleibt gleich
       
 if __name__=='__main__':
-    import argparse,IPython
+    import argparse
+
+    import IPython
     logging.basicConfig(level='DEBUG')
     
     parser = argparse.ArgumentParser()
