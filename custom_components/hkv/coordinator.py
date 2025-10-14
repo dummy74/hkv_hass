@@ -1,26 +1,29 @@
-'''
-Created on Dec 30, 2022
+'''Created on Dec 30, 2022
 
 @author: holger
 '''
-from datetime import timedelta
+import asyncio
 from collections import OrderedDict
+from dataclasses import asdict
+from datetime import timedelta
 import logging
-
-import async_timeout
 
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.core import callback
-from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
     DataUpdateCoordinator,
     UpdateFailed,
 )
+
 from .const import DOMAIN
+from .hkv.packets import (
+    HKVConnectionDataPacket,
+    HKVRelaisDataPacket,
+    HKVStatusDataPacket,
+    HKVTempDataPacket,
+)
 from .hub import HKVHub
-from .hkv.packets import HKVTempDataPacket, HKVRelaisDataPacket, HKVStatusDataPacket, HKVConnectionDataPacket
-from dataclasses import asdict
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -37,30 +40,37 @@ class HKVCoordinator(DataUpdateCoordinator):
                          update_method=self.async_update_data,
                          )
         self.api = HKVHub(dev, baud)
+        # async with async_timeout(10):
+        #     _LOGGER.info("Connecting ...")
+        #     await self.api.connect()
+        _LOGGER.debug("Start Connect Task ...")
         hass.async_create_task(self.api.connect())  # Async connect
+
         self.api.hkv.register_packet_handler(self._handle_data_packet, HKVTempDataPacket)
         self.api.hkv.register_packet_handler(self._handle_data_packet, HKVRelaisDataPacket)
         self.api.hkv.register_packet_handler(self._handle_data_packet, HKVStatusDataPacket)
         self.api.hkv.register_packet_handler(self._handle_data_packet, HKVConnectionDataPacket)
         self.interval = interval
+        _LOGGER.debug("Coordinator finished Init")
 
     @property
     def hkv(self):
+        """The HKV device."""
         return self.api.hkv
 
-    def _handle_data_packet(self, packet):
-        _LOGGER.info(f"Handle HKV packet {packet}")
+    async def _handle_data_packet(self, packet):
+        _LOGGER.debug(f"Handle HKV packet {packet}")
         dev_addr = packet.SRC
         if dev_addr not in self.data['devices']:
             self.data['devices'][dev_addr] = OrderedDict(ID='UNKNOWN')  # Default
         data = asdict(packet)
         self.data['devices'][dev_addr].update({k: v for k, v in data.items() if k not in ['SRC', 'DST', 'TYPE']})
-        _LOGGER.info(f"Handle HKV packet data update {self.data=}")
+        _LOGGER.info(f"Handle HKV packet data update self.data['devices'][{dev_addr}]={self.data['devices'][dev_addr]}")
         self.async_set_updated_data(self.data)
 
     async def async_update_data(self):
         """Fetch data from API endpoint."""
-        _LOGGER.error("Fetching HKV data")
+        _LOGGER.info("Fetching HKV data")
 
         if self.data is None:
             hub_data = OrderedDict(SRC=99, ID='HKV-Hub')
@@ -69,10 +79,12 @@ class HKVCoordinator(DataUpdateCoordinator):
                 "devices": OrderedDict()}
 
         try:
-            async with async_timeout.timeout(90):
+            async with asyncio.timeout(90):
+                while not self.api.connected:
+                    await asyncio.sleep(1)
                 parsed_data = await self.api.fetch_data(self.hass)
             self.data.update(parsed_data)
-        except Exception as err:
+        except asyncio.CancelledError as err:
             raise UpdateFailed(f"Error communicating with API: {err}")
 
         return self.data
@@ -85,12 +97,12 @@ class HKVCoordinator(DataUpdateCoordinator):
         key_parts = key.rsplit('_', 1)
         if len(key_parts) == 2 and key_parts[-1].isnumeric():
             key = key_parts[0]
-            index = int(key_parts[1]) - 1
+            index = int(key_parts[1]) #- 1
             data["devices"][dev_addr][key][index] = value
         else:
             data["devices"][dev_addr][key] = value
-        _LOGGER.error(f"async_update_local_entry: {dev_addr=}, {key=} to {value}")
-        _LOGGER.error(f"async_update_local_entry: {data=}")
+        _LOGGER.info(f"async_update_local_entry: {dev_addr=}, {key=} to {value}")
+        _LOGGER.debug(f"async_update_local_entry: {data=}")
         self.async_set_updated_data(data)
 
 class HKVEntity(CoordinatorEntity, SensorEntity):

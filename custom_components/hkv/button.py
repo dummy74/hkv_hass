@@ -38,7 +38,7 @@ async def async_setup_entry(
         key="hello_all",
         name='Hello',
         slave=99,
-        device_class=ButtonDeviceClass.RESTART,
+        device_class=ButtonDeviceClass.IDENTIFY,
     ))
     
     
@@ -100,13 +100,13 @@ class HKVButton(CoordinatorEntity, ButtonEntity):
     async def async_press(self) -> None:
         """Handle the button press."""
         if self.description.key == 'hello_all':
-            self.coordinator.hkv.hello(dst=-1)
+            await self.coordinator.hkv.hello(dst=-1)
         elif self.description.key == 'reboot':
-            self.coordinator.hkv.reboot(dst=self.description.slave)
+            await self.coordinator.hkv.reboot(dst=self.description.slave)
         elif self.description.key == 'update_status':
-            self.coordinator.hkv.get_status(dst=self.description.slave)
+            await self.coordinator.hkv.get_status(dst=self.description.slave)
         elif self.description.key == 'calibrate_temps':
-            self.coordinator.hkv.calibrate_temps(dst=self.description.slave)
+            await self.coordinator.hkv.calibrate_temps(dst=self.description.slave)
 
     @property
     def available(self) -> bool:

@@ -1,25 +1,24 @@
 """Support for victron energy switches."""
 from __future__ import annotations
 
+from dataclasses import dataclass
+import logging
 from typing import Any
 
-from dataclasses import dataclass
-
-from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription, DOMAIN as SWITCH_DOMAIN
+from homeassistant.components.switch import (
+    DOMAIN as SWITCH_DOMAIN,
+    SwitchEntity,
+    SwitchEntityDescription,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
-from homeassistant.helpers import entity
 
-from .coordinator import HKVCoordinator
-from .const import DOMAIN
 from .base import HKVWriteBaseEntityDescription
-
-from collections.abc import Callable
-from homeassistant.helpers.typing import StateType
-
-import logging
+from .const import DOMAIN
+from .coordinator import HKVCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -78,7 +77,8 @@ class HKVSwitch(CoordinatorEntity, SwitchEntity):
                 retry -= 1
                 res = await self.coordinator.hkv.set_relais((self.description.keynum, 1), dst=self.description.slave)
                 success = res[0][0] if res else False
-                if success: break
+                if success:
+                    break
         await self.coordinator.async_update_local_entry(dev_addr=self.description.slave, key=self.description.key, value=1 if success else 0)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
@@ -90,7 +90,8 @@ class HKVSwitch(CoordinatorEntity, SwitchEntity):
                 retry -= 1
                 res = await self.coordinator.hkv.set_relais((self.description.keynum, 0), dst=self.description.slave)
                 success = res[0][0] if res else False
-                if success: break
+                if success:
+                    break
         await self.coordinator.async_update_local_entry(dev_addr=self.description.slave, key=self.description.key, value=0 if success else 1)
 
     @property

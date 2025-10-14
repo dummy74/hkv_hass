@@ -22,41 +22,51 @@ from .packets import (
     HKVTempChannelPacket,
     HKVTempDataPacket,
 )
+import contextlib
 
 _LOGGER = logging.getLogger(__name__)
 
 class HKV():
 
     def __init__(self, name='HKV', addr=99):
+        self.name = name
         self._reader = None
         self._writer = None
-        self.name = name
+        self._recv_task = None
         self._addr = addr
         self._events = {
-            HKVLogPacket: Event(),
-            HKVHelloPacket: Event(),
-            HKVAckPacket: Event(),
-            HKVNAckPacket: Event(),
-            HKVTempChannelPacket: Event(),
-            HKVRelaisChannelPacket: Event(),
-            HKVTempDataPacket: Event(),
-            HKVRelaisDataPacket: Event(),
-            HKVConnectionDataPacket: Event(),
-            HKVStatusDataPacket: Event(),
+            HKVLogPacket: asyncio.Event(), #Event(),
+            HKVHelloPacket: asyncio.Event(), #Event(),
+            HKVAckPacket: asyncio.Event(), #Event(),
+            HKVNAckPacket: asyncio.Event(), #Event(),
+            HKVTempChannelPacket: asyncio.Event(), #Event(),
+            HKVRelaisChannelPacket: asyncio.Event(), #Event(),
+            HKVTempDataPacket: asyncio.Event(), #Event(),
+            HKVRelaisDataPacket: asyncio.Event(), #Event(),
+            HKVConnectionDataPacket: asyncio.Event(), #Event(),
+            HKVStatusDataPacket: asyncio.Event(), #Event(),
         }
-        self._temp_data_event = Event()
+        self._temp_data_event = asyncio.Event(), #Event()
         self._packets = deque(maxlen=10000)
         self._known_addr = []
-        self._plock = threading.Lock()
+        self._plock = asyncio.Lock() #threading.Lock()
         self._handler = {}
         self._block_handlers = False
 
+    @property
+    def connected(self):
+        return self._reader is not None and self._writer is not None
+
     async def recv(self):
+        """Asyncronous Receiver Corotine."""
+        _LOGGER.error(f"recv: Task started!")
         while True:
             try:
                 line = await self._reader.readline()
+                _LOGGER.debug(f"recv: line (len={len(line)}): {line}")
                 line = line.decode().strip()
-                if len(line) == 0: continue
+                if len(line) == 0:
+                    continue
                 try:
                     packet = HKVPacket.from_doc(line)
                     if packet.SRC not in self._known_addr:
@@ -71,20 +81,27 @@ class HKV():
                     if event:
                         event.param = packet
                         event.set()
-                    with self._plock:
+                    try:
+                        await self._plock.acquire()
                         self._packets.append(packet)
+                    finally:
+                        self._plock.release()
 
                     if self._block_handlers:
                         continue
 
                     for pt, handlers in self._handler.items():
                         if isinstance(packet, pt):
-                            for h in handlers.copy():
-                                h(packet)
+                            # for h in handlers.copy():
+                            #     h(packet)
+                            await asyncio.gather(*[asyncio.create_task(h(packet)) for h in handlers.copy() if h is not None])
 
                 except Exception as e:
+                    import traceback
+                    traceback.format_exc()
                     _LOGGER.error(f"RX{self.name}: {line=}")
-                    _LOGGER.error(f"{e}", exc_info=False)
+                    _LOGGER.error(traceback.format_exc())
+                    _LOGGER.error(f"{e}", exc_info=True)
             except asyncio.TimeoutError:
                 continue
             except Exception as e:
@@ -92,39 +109,56 @@ class HKV():
             await asyncio.sleep(0.1)
 
     def register_packet_handler(self, handler: Callable, packet_type: HKVPacket):
+        """Register handlers for spezific paket types."""
         handlers = self._handler.get(packet_type, [])
         if handler in handlers: return
         handlers.append(handler)
         self._handler[packet_type] = handlers
 
     async def packets_pop(self):
-        with self._plock:
+        """Remove all received packets from internal list and return them."""
+        try:
+            await self._plock.acquire()
             packets = list(self._packets)
             self._packets.clear()
-            return packets
+        finally:
+            self._plock.release()
+        return packets
 
     async def connect(self, port: str = '/dev/ttyUSB0', baud: int = 115200):
+        """Connect the HKV device via serial port and create receiver task."""
         self._reader, self._writer = await serial_asyncio.open_serial_connection(
             url=port, baudrate=baud, timeout=1
         )
-        asyncio.create_task(self.recv())
+        self._recv_task = asyncio.create_task(self.recv())
+
+    async def disconnect(self):
+        """This only cancels the receiver task."""
+        if self._recv_task:
+            with contextlib.suppress(asyncio.CancelledError):
+                self._recv_task.cancel()
+            #await asyncio.wait_for(self._recv_task,timeout=2.0)
 
     async def reboot(self, dst: int = 0, timeout=10):
+        """Reboot command."""
         evt = self._events[HKVAckPacket]
         evt_err = self._events[HKVNAckPacket]
         return await self._write(evt, evt_err, SRC=self._addr, DST=int(dst), TYPE="B", timeout=timeout)
 
     async def hello(self, dst: int = 0, timeout=10):
+        """Hello command."""
         evt = self._events[HKVHelloPacket]
         evt_err = self._events[HKVNAckPacket]
         return await self._write(evt, evt_err, SRC=self._addr, DST=int(dst), TYPE="H", HTYPE="R", timeout=timeout)
 
     async def get_status(self, dst: int = 0, timeout=5):
+        """Get status command."""
         evt = self._events[HKVStatusDataPacket]
         evt_err = self._events[HKVNAckPacket]
         return await self._write(evt, evt_err, SRC=self._addr, DST=int(dst), TYPE="S", STYPE="G", timeout=timeout)
 
     async def get_connections(self, dst: int = 0, timeout=5):
+        """Get connections command."""
         evt = self._events[HKVConnectionDataPacket]
         evt_err = self._events[HKVNAckPacket]
         return await self._write(evt, evt_err, SRC=self._addr, DST=int(dst), TYPE="C", CTYPE="G", timeout=timeout)
@@ -223,19 +257,20 @@ class HKV():
                     if evt_err is None:
                         evt_err = self._events[HKVNAckPacket]
                     evt_err.clear()
-                    try:
-                        done, pending = await asyncio.wait(
-                            [asyncio.create_task(evt.wait()), asyncio.create_task(evt_err.wait())],
-                            timeout=timeout, return_when=asyncio.FIRST_COMPLETED
-                        )
-                        for p in pending:
-                            p.cancel()
-                        if evt.is_set():
-                            return True, evt.param
-                        elif evt_err.is_set():
-                            return False, evt_err.param
-                    except asyncio.TimeoutError:
-                        _LOGGER.warning("Write timeout")
+                    starttime = time.time()
+                    done, pending = await asyncio.wait([
+                        asyncio.create_task(evt.wait()), 
+                        asyncio.create_task(evt_err.wait())],
+                        timeout=timeout, return_when=asyncio.FIRST_COMPLETED
+                    )
+                    _LOGGER.debug(f"{len(done)=}, {len(pending)=}")
+                    for p in pending:
+                        p.cancel()
+                    if evt.is_set():
+                        return True, evt.param
+                    if evt_err.is_set():
+                        return False, evt_err.param
+                    _LOGGER.warning(f"Write timeout of {timeout} seconds reached! (measured; {time.time()-starttime} seconds)")
                 return False, None
             except Exception as e:
                 _LOGGER.error(f"Write error: {e}")
@@ -244,11 +279,28 @@ class HKV():
         return False, None
 
 # Rest des Codes (if __name__ == '__main__': ...) bleibt gleich
-      
+
+async def main(args):
+    import IPython
+
+    hkv1 = HKV(name='1',addr=args.addr)
+    hkv2 = HKV(name='2',addr=args.addr)
+    if args.dev1:
+        await hkv1.connect(args.dev1,baud=args.baud1)
+    if args.dev2:
+        await hkv2.connect(args.dev2,baud=args.baud2)
+    #some_test_code(hkv1,hkv2)
+    print(await hkv1.hello())
+    print(await hkv1.get_status(dst=-1))
+    print(await hkv1.get_relais(dst=-1))
+    #await asyncio.sleep(5)
+    #IPython.embed()
+    await hkv1.disconnect()
+    await hkv2.disconnect()
+
 if __name__=='__main__':
     import argparse
 
-    import IPython
     logging.basicConfig(level='DEBUG')
     
     parser = argparse.ArgumentParser()
@@ -258,15 +310,8 @@ if __name__=='__main__':
     parser.add_argument("--baud2",type=int,default=115200, help="Serial baudrate")
     parser.add_argument("--addr",type=int,default=99, help="Address of this node")
     args = parser.parse_args()
-    
-    hkv1 = HKV(name='1',addr=args.addr)
-    hkv2 = HKV(name='2',addr=args.addr)
-    if args.dev1:
-        hkv1.connect(args.dev1,baud=args.baud1)
-    if args.dev2:
-        hkv2.connect(args.dev2,baud=args.baud2)
-    #some_test_code(hkv1,hkv2)
-    IPython.embed()
+    loop = asyncio.new_event_loop()
+    loop.run_until_complete(main(args))
     
     
 def some_test_code(hkv1,hkv2):

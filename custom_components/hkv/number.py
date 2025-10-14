@@ -1,25 +1,25 @@
 """Support for victron energy slider number entities."""
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Optional, cast
+import logging
 
 from homeassistant import config_entries
-from homeassistant.components.number import NumberEntity, NumberEntityDescription, NumberMode, DOMAIN as NUMBER_DOMAIN
+from homeassistant.components.number import (
+    DOMAIN as NUMBER_DOMAIN,
+    NumberEntity,
+    NumberEntityDescription,
+    NumberMode,
+)
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .coordinator import HKVCoordinator
 from .base import HKVBaseEntityDescription
 from .const import DOMAIN
-
-from homeassistant.helpers.typing import StateType
-from homeassistant.helpers import entity
-
-import logging
+from .coordinator import HKVCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 

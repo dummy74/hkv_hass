@@ -1,16 +1,13 @@
-'''
-Created on Dec 31, 2022
+'''Created on Dec 31, 2022.
 
 @author: holger
 '''
-import threading
 import asyncio
-from .hkv.hkv import HKV
+from collections import OrderedDict
 import logging
-from .hkv.packets import HKVHelloPacket, HKVDataPacket, HKVTempDataPacket
-from queue import Empty
-from collections import OrderedDict, defaultdict
-from dataclasses import asdict
+import threading
+
+from .hkv.hkv import HKV
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -28,8 +25,19 @@ class HKVHub:
         self._lock = threading.Lock()
         self.hkv = HKV()
 
+    @property
+    def connected(self):
+        """Connected?"""
+        return self.hkv.connected
+
     async def connect(self):
+        if self.connected:
+            return
+
         await self.hkv.connect(port=self.dev)
+
+        await asyncio.sleep(2)
+
         _LOGGER.info(f"hello: {await self.hkv.hello(dst=-1, timeout=20)}")
         # TODO: register temps handler
 
@@ -38,11 +46,12 @@ class HKVHub:
         await self.hkv.set_temps_transmit_period(delay=0, period=0, dst=-1, timeout=10)
 
     async def scan_connected_devices(self):
-        _LOGGER.error(f"scan_connected_devices: ...")
+        _LOGGER.error("scan_connected_devices: ...")
         devices = {}
         return {"devices": devices}
 
     async def fetch_data(self, hass):
+
         self.hkv._block_handlers = True
         devices = OrderedDict()
 
@@ -100,7 +109,7 @@ class HKVHub:
                     tempi = f"Temp{ii+1}"
                     temp = dev['TDATA'][ii]
                     dev[tempi] = temp if temp else None
-                    
+
             success = False
             while not success:
                 success, relais_pck = await self.hkv.get_relais(dst=0, timeout=10)
@@ -119,15 +128,12 @@ class HKVHub:
 
             # Handle connections
             if conn_pck:
-                query_tasks = []
                 for i in range(conn_pck.CCNT):
                     addr = conn_pck.CDATA[i]['ADDR']
                     if addr and addr not in [0, 99]:
                         dev = defaultdevdata()
                         devices[addr] = dev
-                        query_tasks.append(self._query_device(addr, dev))
-                if query_tasks:
-                    await asyncio.gather(*query_tasks, return_exceptions=True)
+                        await self._query_device(addr, dev)
 
         except Exception as e:
             _LOGGER.critical(e, exc_info=True)
@@ -151,7 +157,7 @@ class HKVHub:
         # state_pck = results[0][1] if isinstance(results[0], tuple) and results[0][0] else None
         # temps_pck = results[1][1] if isinstance(results[1], tuple) and results[1][0] else None
         # relais_pck = results[2][1] if isinstance(results[2], tuple) and results[2][0] else None
-        
+
         success = False
         while not success:
             success, state_pck = await self.hkv.get_status(dst=addr, timeout=10)
