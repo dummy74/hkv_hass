@@ -73,7 +73,7 @@ class HKVConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @callback
     def async_get_options_flow(config_entry: ConfigEntry,) -> HKVOptionFlowHandler:
         """Get the options flow for this handler."""
-        return HKVOptionFlowHandler(config_entry)
+        return HKVOptionFlowHandler()
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Handle the initial step."""
@@ -118,11 +118,6 @@ class HKVOptionFlowHandler(config_entries.OptionsFlow):
     """Handle options."""
 
     logger = logging.getLogger(__name__)
-
-    def __init__(self, config_entry: ConfigEntry) -> None:
-        """Initialize options flow."""
-        self.config_entry = config_entry
-        self.area = None
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Manage the options."""
