@@ -16,8 +16,11 @@ PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BINARY_SENSOR, Platform.S
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up HKV from a config entry."""
     
-    coordinator = HKVCoordinator(hass, entry.options[CONF_DEV], entry.options[CONF_BAUD], entry.options[CONF_TIMEOUT], 
-                                       entry.options[CONF_INTERVAL])
+    coordinator = HKVCoordinator(hass,
+                                 entry.options[CONF_DEV],
+                                 entry.options[CONF_BAUD],
+                                 entry.options.get(CONF_TIMEOUT,1.0), 
+                                 entry.options[CONF_INTERVAL])
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
