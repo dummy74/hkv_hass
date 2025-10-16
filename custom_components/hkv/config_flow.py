@@ -15,7 +15,7 @@ from homeassistant.config_entries import ConfigEntry, OptionsFlow
 from .const import DOMAIN
 from .hub import HKVHub
 from .const import CONF_DEV, CONF_BAUD,\
-    CONF_INTERVAL, SCAN_REGISTERS
+    CONF_INTERVAL, CONF_TIMEOUT, SCAN_REGISTERS
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -24,6 +24,7 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_DEV,default='/dev/ttyUSB0'): str,
         vol.Required(CONF_BAUD,default=115200): int,
+        vol.Required(CONF_TIMEOUT,default=1.0): float,
         vol.Required(CONF_INTERVAL, default=1): int,
     }
 )
@@ -134,6 +135,7 @@ class HKVOptionFlowHandler(config_entries.OptionsFlow):
             data_schema=vol.Schema({
                 vol.Required(CONF_DEV,default=self.config_entry.options.get(CONF_DEV),): str,
                 vol.Required(CONF_BAUD,default=self.config_entry.options.get(CONF_BAUD),): int,
+                vol.Required(CONF_TIMEOUT,default=self.config_entry.options.get(CONF_TIMEOUT),): float,
                 vol.Required(CONF_INTERVAL,default=self.config_entry.options.get(CONF_INTERVAL),): int,
                 }
             ),

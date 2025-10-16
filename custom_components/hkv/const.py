@@ -6,6 +6,7 @@ DOMAIN = "hkv"
 
 CONF_DEV = "dev"
 CONF_BAUD = "baudrate"
+CONF_TIMEOUT = "timeout"
 SCAN_REGISTERS = "registers"
 CONF_INTERVAL = "interval"
 

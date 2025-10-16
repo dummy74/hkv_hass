@@ -5,7 +5,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN, CONF_DEV, CONF_BAUD, CONF_INTERVAL
+from .const import DOMAIN, CONF_DEV, CONF_BAUD, CONF_TIMEOUT, CONF_INTERVAL
 from .coordinator import HKVCoordinator, HKVEntity
 
 # TODO List the platforms that you want to support.
@@ -16,7 +16,7 @@ PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BINARY_SENSOR, Platform.S
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up HKV from a config entry."""
     
-    coordinator = HKVCoordinator(hass, entry.options[CONF_DEV], entry.options[CONF_BAUD], 
+    coordinator = HKVCoordinator(hass, entry.options[CONF_DEV], entry.options[CONF_BAUD], entry.options[CONF_TIMEOUT], 
                                        entry.options[CONF_INTERVAL])
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = coordinator

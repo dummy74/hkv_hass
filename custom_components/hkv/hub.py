@@ -18,10 +18,11 @@ class HKVHub:
     TODO Remove this placeholder class and replace with things from your PyPI package.
     """
 
-    def __init__(self, dev: str, baud: int) -> None:
+    def __init__(self, dev: str, baud: int, timeout: float = 1.0) -> None:
         """Initialize."""
         self.dev = dev
         self.baud = baud
+        self.timeout = timeout
         self._lock = threading.Lock()
         self.hkv = HKV()
 
@@ -34,7 +35,7 @@ class HKVHub:
         if self.connected:
             return
 
-        await self.hkv.connect(port=self.dev)
+        await self.hkv.connect(port=self.dev, baud=self.baud, timeout=self.timeout)
 
         await asyncio.sleep(2)
 

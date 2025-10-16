@@ -32,14 +32,14 @@ class HKVCoordinator(DataUpdateCoordinator):
 
     api: HKVHub
 
-    def __init__(self, hass, dev: str, baud: int, interval: int):
+    def __init__(self, hass, dev: str, baud: int, timeout: float, interval: int):
         """Initialize my coordinator."""
         super().__init__(hass, _LOGGER,
                          name=DOMAIN,
                          update_interval=timedelta(seconds=30),  # Reduziert auf 30s
                          update_method=self.async_update_data,
                          )
-        self.api = HKVHub(dev, baud)
+        self.api = HKVHub(dev, baud, timeout)
         # async with async_timeout(10):
         #     _LOGGER.info("Connecting ...")
         #     await self.api.connect()

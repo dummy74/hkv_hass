@@ -1,12 +1,10 @@
 import asyncio
 import json
 import logging
-import threading
 import time
+import contextlib
 from collections import defaultdict, deque
 from collections.abc import Callable, Iterable
-from threading import Event
-
 import serial_asyncio
 
 from .packets import (
@@ -22,34 +20,38 @@ from .packets import (
     HKVTempChannelPacket,
     HKVTempDataPacket,
 )
-import contextlib
 
 _LOGGER = logging.getLogger(__name__)
 
-class HKV():
 
-    def __init__(self, name='HKV', addr=99):
+class HKV:
+    """HKV device interface with robust serial receive handling."""
+
+    def __init__(self, name="HKV", addr=99):
         self.name = name
         self._reader = None
         self._writer = None
         self._recv_task = None
         self._addr = addr
+        self._port = None
+        self._baud = None
+        self._timeout = 1
+        self._reconnect_delay = 5  # seconds
         self._events = {
-            HKVLogPacket: asyncio.Event(), #Event(),
-            HKVHelloPacket: asyncio.Event(), #Event(),
-            HKVAckPacket: asyncio.Event(), #Event(),
-            HKVNAckPacket: asyncio.Event(), #Event(),
-            HKVTempChannelPacket: asyncio.Event(), #Event(),
-            HKVRelaisChannelPacket: asyncio.Event(), #Event(),
-            HKVTempDataPacket: asyncio.Event(), #Event(),
-            HKVRelaisDataPacket: asyncio.Event(), #Event(),
-            HKVConnectionDataPacket: asyncio.Event(), #Event(),
-            HKVStatusDataPacket: asyncio.Event(), #Event(),
+            HKVLogPacket: asyncio.Event(),
+            HKVHelloPacket: asyncio.Event(),
+            HKVAckPacket: asyncio.Event(),
+            HKVNAckPacket: asyncio.Event(),
+            HKVTempChannelPacket: asyncio.Event(),
+            HKVRelaisChannelPacket: asyncio.Event(),
+            HKVTempDataPacket: asyncio.Event(),
+            HKVRelaisDataPacket: asyncio.Event(),
+            HKVConnectionDataPacket: asyncio.Event(),
+            HKVStatusDataPacket: asyncio.Event(),
         }
-        self._temp_data_event = asyncio.Event(), #Event()
         self._packets = deque(maxlen=10000)
         self._known_addr = []
-        self._plock = asyncio.Lock() #threading.Lock()
+        self._plock = asyncio.Lock()
         self._handler = {}
         self._block_handlers = False
 
@@ -57,87 +59,147 @@ class HKV():
     def connected(self):
         return self._reader is not None and self._writer is not None
 
+    # ---------------------------------------------------------------------
+    #  ROBUST RECEIVER TASK
+    # ---------------------------------------------------------------------
     async def recv(self):
-        """Asyncronous Receiver Corotine."""
-        _LOGGER.error(f"recv: Task started!")
+        """Asynchronous receiver coroutine with error handling and resync logic."""
+        _LOGGER.info(f"recv[{self.name}]: Task started.")
+        buffer = ""
+
         while True:
             try:
-                line = await self._reader.readline()
-                _LOGGER.debug(f"recv: line (len={len(line)}): {line}")
-                line = line.decode().strip()
-                if len(line) == 0:
+                data = await self._reader.read(256)
+                if not data:
+                    _LOGGER.warning(f"recv[{self.name}]: no data – possible disconnect.")
+                    await asyncio.sleep(1)
                     continue
-                try:
-                    packet = HKVPacket.from_doc(line)
-                    if packet.SRC not in self._known_addr:
-                        self._known_addr.append(packet.SRC)
-                    if isinstance(packet, HKVLogPacket):
-                        levels = defaultdict(lambda: logging.CRITICAL)
-                        levels.update({'D': logging.DEBUG, 'I': logging.INFO, 'W': logging.WARNING, 'E': logging.ERROR})
-                        logging.getLogger(f"{__name__}.SRC{packet.SRC}").log(levels[packet.LTYPE], f"{packet.MSG}")
-                        continue
-                    _LOGGER.debug(f"HKV-{self.name}: {packet}")
-                    event = self._events.get(packet.__class__, None)
-                    if event:
-                        event.param = packet
-                        event.set()
-                    try:
-                        await self._plock.acquire()
-                        self._packets.append(packet)
-                    finally:
-                        self._plock.release()
-
-                    if self._block_handlers:
-                        continue
-
-                    for pt, handlers in self._handler.items():
-                        if isinstance(packet, pt):
-                            # for h in handlers.copy():
-                            #     h(packet)
-                            await asyncio.gather(*[asyncio.create_task(h(packet)) for h in handlers.copy() if h is not None])
-
-                except Exception as e:
-                    import traceback
-                    traceback.format_exc()
-                    _LOGGER.error(f"RX{self.name}: {line=}")
-                    _LOGGER.error(traceback.format_exc())
-                    _LOGGER.error(f"{e}", exc_info=True)
-            except asyncio.TimeoutError:
+            except (asyncio.IncompleteReadError, asyncio.TimeoutError):
+                await asyncio.sleep(0.1)
                 continue
             except Exception as e:
-                _LOGGER.error(f"Recv error: {e}")
-            await asyncio.sleep(0.1)
+                _LOGGER.error(f"recv[{self.name}]: read error: {e}")
+                await self._handle_serial_error(e)
+                continue
 
-    def register_packet_handler(self, handler: Callable, packet_type: HKVPacket):
-        """Register handlers for spezific paket types."""
-        handlers = self._handler.get(packet_type, [])
-        if handler in handlers: return
-        handlers.append(handler)
-        self._handler[packet_type] = handlers
+            # Dekodiere Bytes → String
+            try:
+                text = data.decode("utf-8", errors="ignore")
+            except Exception as e:
+                _LOGGER.error(f"recv[{self.name}]: decode error: {e}")
+                continue
 
-    async def packets_pop(self):
-        """Remove all received packets from internal list and return them."""
+            buffer += text
+
+            # Mehrere JSON-Objekte in einem Chunk möglich
+            while "}\n" in buffer:
+                raw_line, buffer = buffer.split("}\n", 1)
+                line = (raw_line + "}").strip()
+
+                if not line or not line.startswith("{"):
+                    # Nicht-JSON-Zeilen (z. B. Bootmeldungen) überspringen
+                    _LOGGER.debug(f"recv[{self.name}]: ignored line: {line!r}")
+                    continue
+
+                try:
+                    packet = HKVPacket.from_doc(line)
+                except json.JSONDecodeError as e:
+                    _LOGGER.warning(
+                        f"recv[{self.name}]: JSONDecodeError – resyncing buffer. {e}: {line!r}"
+                    )
+                    buffer = ""
+                    break
+                except Exception as e:
+                    _LOGGER.error(f"recv[{self.name}]: parse error: {e}", exc_info=True)
+                    continue
+
+                await self._handle_packet(packet)
+            await asyncio.sleep(0)
+
+    # ---------------------------------------------------------------------
+    async def _handle_packet(self, packet: HKVPacket):
+        """Verarbeitet erfolgreich empfangene Pakete."""
+        if packet.SRC not in self._known_addr:
+            self._known_addr.append(packet.SRC)
+
+        if isinstance(packet, HKVLogPacket):
+            levels = defaultdict(lambda: logging.CRITICAL)
+            levels.update(
+                {
+                    "D": logging.DEBUG,
+                    "I": logging.INFO,
+                    "W": logging.WARNING,
+                    "E": logging.ERROR,
+                }
+            )
+            logging.getLogger(f"{__name__}.SRC{packet.SRC}").log(
+                levels[packet.LTYPE], f"{packet.MSG}"
+            )
+            return
+
+        _LOGGER.debug(f"HKV[{self.name}]: {packet}")
+        event = self._events.get(packet.__class__)
+        if event:
+            event.param = packet
+            event.set()
+
+        async with self._plock:
+            self._packets.append(packet)
+
+        if not self._block_handlers and self._handler:
+            await asyncio.gather(
+                *[
+                    asyncio.create_task(h(packet))
+                    for pt, handlers in self._handler.items()
+                    if isinstance(packet, pt)
+                    for h in handlers.copy()
+                ]
+            )
+
+    # ---------------------------------------------------------------------
+    async def _handle_serial_error(self, error: Exception):
+        """Bei schwerem Fehler serielle Schnittstelle neu öffnen."""
+        _LOGGER.error(f"recv[{self.name}]: Serial error: {error}, attempting reconnect…")
+        await self._reconnect()
+
+    async def _reconnect(self):
+        """Schließt und öffnet den Port neu."""
+        if not self._port:
+            _LOGGER.warning(f"recv[{self.name}]: no port info, cannot reconnect.")
+            return
+        with contextlib.suppress(Exception):
+            if self._writer:
+                self._writer.close()
+        await asyncio.sleep(self._reconnect_delay)
         try:
-            await self._plock.acquire()
-            packets = list(self._packets)
-            self._packets.clear()
-        finally:
-            self._plock.release()
-        return packets
+            self._reader, self._writer = await serial_asyncio.open_serial_connection(
+                url=self._port, baudrate=self._baud, timeout=1
+            )
+            _LOGGER.info(f"recv[{self.name}]: reconnected to {self._port}")
+        except Exception as e:
+            _LOGGER.error(f"recv[{self.name}]: reconnect failed: {e}")
+            await asyncio.sleep(self._reconnect_delay)
 
-    async def connect(self, port: str = '/dev/ttyUSB0', baud: int = 115200):
-        """Connect the HKV device via serial port and create receiver task."""
+    # ---------------------------------------------------------------------
+    async def connect(self, port: str = "/dev/ttyUSB0", baud: int = 115200, timeout: float = 0.5):
+        """Connect to HKV device via serial port and start receiver task."""
+        self._port = port
+        self._baud = baud
+        self._timeout = timeout
         self._reader, self._writer = await serial_asyncio.open_serial_connection(
-            url=port, baudrate=baud, timeout=1
+            url=port, baudrate=baud, timeout=timeout
         )
         self._recv_task = asyncio.create_task(self.recv())
+        _LOGGER.info(f"[{self.name}] Connected to {port} @ {baud} baud. (timeout={timeout})")
 
     async def disconnect(self):
-        """This only cancels the receiver task."""
+        """Stop receiver and close port."""
         if self._recv_task:
             with contextlib.suppress(asyncio.CancelledError):
                 self._recv_task.cancel()
-            #await asyncio.wait_for(self._recv_task,timeout=2.0)
+        if self._writer:
+            self._writer.close()
+        _LOGGER.info(f"[{self.name}] Disconnected.")
 
     async def reboot(self, dst: int = 0, timeout=10):
         """Reboot command."""
