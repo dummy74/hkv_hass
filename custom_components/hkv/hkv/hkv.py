@@ -180,6 +180,24 @@ class HKV:
             _LOGGER.error(f"recv[{self.name}]: reconnect failed: {e}")
             await asyncio.sleep(self._reconnect_delay)
 
+
+    def register_packet_handler(self, handler: Callable, packet_type: HKVPacket):
+        """Register handlers for spezific paket types."""
+        handlers = self._handler.get(packet_type, [])
+        if handler in handlers: return
+        handlers.append(handler)
+        self._handler[packet_type] = handlers
+
+    async def packets_pop(self):
+        """Remove all received packets from internal list and return them."""
+        try:
+            await self._plock.acquire()
+            packets = list(self._packets)
+            self._packets.clear()
+        finally:
+            self._plock.release()
+        return packets
+        
     # ---------------------------------------------------------------------
     async def connect(self, port: str = "/dev/ttyUSB0", baud: int = 115200, timeout: float = 0.5):
         """Connect to HKV device via serial port and start receiver task."""
