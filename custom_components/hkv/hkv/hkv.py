@@ -70,6 +70,7 @@ class HKV:
         while True:
             try:
                 data = await self._reader.read(256)
+                _LOGGER.debug(f"RX: {data}")
                 if not data:
                     _LOGGER.warning(f"recv[{self.name}]: no data – possible disconnect.")
                     await asyncio.sleep(1)
@@ -92,8 +93,8 @@ class HKV:
             buffer += text
 
             # Mehrere JSON-Objekte in einem Chunk möglich
-            while "}\n" in buffer:
-                raw_line, buffer = buffer.split("}\n", 1)
+            while "}\r\n" in buffer:
+                raw_line, buffer = buffer.split("}\r\n", 1)
                 line = (raw_line + "}").strip()
 
                 if not line or not line.startswith("{"):
@@ -197,7 +198,7 @@ class HKV:
         finally:
             self._plock.release()
         return packets
-        
+
     # ---------------------------------------------------------------------
     async def connect(self, port: str = "/dev/ttyUSB0", baud: int = 115200, timeout: float = 0.5):
         """Connect to HKV device via serial port and start receiver task."""
